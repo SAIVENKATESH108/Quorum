@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { FilePlus2, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { useCreateReport } from "@/hooks/useReports";
 import { useUiStore } from "@/stores/uiStore";
 
 export function CreateReportModal() {
+  const router = useRouter();
   const activeModal = useUiStore((state) => state.activeModal);
   const closeModal = useUiStore((state) => state.closeModal);
   const setSelectedReportId = useUiStore((state) => state.setSelectedReportId);
@@ -34,9 +36,11 @@ export function CreateReportModal() {
       },
       {
         onSuccess: (res) => {
-          setSelectedReportId(res.report_id);
+          const reportId = res.report_id || res.id;
+          setSelectedReportId(reportId);
           setQuery("");
           closeModal();
+          router.push(`/reports/${reportId}`);
         },
       }
     );

@@ -1,3 +1,4 @@
+export type { ReportStatus } from "@/stores/agentEventsStore";
 import { ReportStatus } from "@/stores/agentEventsStore";
 
 // --- Types matching Prompt C2 Pydantic Schemas ---
@@ -45,6 +46,7 @@ export interface ReportSummaryResponse {
   query: string;
   created_at: string;
   completed_at?: string | null;
+  error_message?: string | null;
 }
 
 export interface ReportDetailResponse extends ReportSummaryResponse {
@@ -258,11 +260,49 @@ function handleMockFallback<T>(path: string, options: RequestInit = {}): Promise
         id: reportId,
         project_id: projectId,
         status: "pending",
-        query: body.query || "Autonomous Investigation",
+        query: body.query || "Autonomous Multi-Agent Investigation",
         created_at: new Date().toISOString(),
         completed_at: null,
-        sections: [],
-        sources: [],
+        sections: [
+          {
+            id: `sec-${reportId}-1`,
+            heading: "1. Executive Summary & Problem Formulation",
+            content:
+              "In asynchronous distributed systems, consensus cannot be guaranteed in the presence of unannounced fail-stop faults without partial synchrony assumptions or randomized consensus protocols [1]. Investigating fault tolerance bounds demonstrates how quorum intersections resolve safety conditions without sacrificing liveness [2].",
+            order_index: 1,
+          },
+          {
+            id: `sec-${reportId}-2`,
+            heading: "2. Empirical Analysis & Parallel Multi-Agent Synthesis",
+            content:
+              "Three parallel researcher agents independently retrieved literature across consensus bounds, Byzantine quorums, and DAG transaction mempools [2]. Cross-validation by the Fact Checker verified claim consistency with 98% confidence across all cited literature [3].",
+            order_index: 2,
+          },
+          {
+            id: `sec-${reportId}-3`,
+            heading: "3. Strategic Recommendations & Architecture",
+            content:
+              "Decoupling transaction dissemination from consensus ordering provides sub-second latency while guaranteeing deterministic state-machine replication [3]. Continued empirical validation under network partition scenarios is strongly recommended [1].",
+            order_index: 3,
+          },
+        ],
+        sources: [
+          {
+            id: `src-${reportId}-1`,
+            url: "https://dl.acm.org/doi/10.1145/3149.214121",
+            title: "Impossibility of Distributed Consensus with One Faulty Process (Fischer, Lynch, Paterson)",
+          },
+          {
+            id: `src-${reportId}-2`,
+            url: "https://arxiv.org/abs/2201.05677",
+            title: "Bullshark: DAG BFT Protocols with Low Latency & High Throughput",
+          },
+          {
+            id: `src-${reportId}-3`,
+            url: "https://vitalik.eth.limo/general/2021/01/05/rollup.html",
+            title: "An Incomplete Guide to Rollups and Asynchronous State Finality",
+          },
+        ],
       };
       mockReports[reportId] = newReport;
 
@@ -357,5 +397,12 @@ export const apiClient = {
     const path = `/api/reports/${reportId}`;
     if (isMockApiMode()) return handleMockFallback<void>(path, { method: "DELETE" });
     return request<void>(path, { method: "DELETE" });
+  },
+
+  completeMockReport(reportId: string): void {
+    if (mockReports[reportId]) {
+      mockReports[reportId].status = "complete";
+      mockReports[reportId].completed_at = new Date().toISOString();
+    }
   },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { isMockApiMode } from "@/lib/api-client";
+import { apiClient, isMockApiMode } from "@/lib/api-client";
 import {
   ConnectionState,
   ReportEventPayload,
@@ -61,7 +61,47 @@ export function useReportEvents(
               report_id: reportId,
               status: "planning",
               agent_role: "orchestrator",
-              metadata: { stage: "DAG generation", subtopics: 3 },
+              metadata: {
+                message: "Orchestrator decomposing query into 3 parallel research subtopics",
+                stage: "DAG generation",
+                subtopics: 3,
+              },
+            },
+            timestamp: new Date().toISOString(),
+          },
+        },
+        {
+          delay: 1800,
+          event: {
+            type: "report_status",
+            data: {
+              report_id: reportId,
+              status: "researching",
+              agent_role: "orchestrator",
+              metadata: {
+                message: "Dispatched 3 parallel researcher agents across literature sources",
+                parallel_tasks: 3,
+              },
+            },
+            timestamp: new Date().toISOString(),
+          },
+        },
+        {
+          delay: 2200,
+          event: {
+            type: "task_status",
+            data: {
+              report_id: reportId,
+              run_id: `run-${reportId}-r1`,
+              task_id: `task-${reportId}-r1`,
+              status: "running",
+              agent_role: "researcher",
+              metadata: {
+                task_type: "research",
+                subtopic: "FLP Impossibility & Asynchronous Bounds",
+                worker_index: 1,
+                source: "arXiv & ACM Digital Library",
+              },
             },
             timestamp: new Date().toISOString(),
           },
@@ -72,66 +112,146 @@ export function useReportEvents(
             type: "task_status",
             data: {
               report_id: reportId,
-              run_id: `run-${reportId}-1`,
-              task_id: `task-${reportId}-1`,
+              run_id: `run-${reportId}-r2`,
+              task_id: `task-${reportId}-r2`,
               status: "running",
               agent_role: "researcher",
-              metadata: { task_type: "research_subtopic", node_id: "research_1" },
+              metadata: {
+                task_type: "research",
+                subtopic: "Byzantine Agreement & Quorum Thresholds",
+                worker_index: 2,
+                source: "IEEE Xplore & Usenix",
+              },
             },
             timestamp: new Date().toISOString(),
           },
         },
         {
-          delay: 5500,
+          delay: 2800,
           event: {
             type: "task_status",
             data: {
               report_id: reportId,
-              run_id: `run-${reportId}-1`,
-              task_id: `task-${reportId}-1`,
+              run_id: `run-${reportId}-r3`,
+              task_id: `task-${reportId}-r3`,
+              status: "running",
+              agent_role: "researcher",
+              metadata: {
+                task_type: "research",
+                subtopic: "DAG Consensus & Narwhal Mempools",
+                worker_index: 3,
+                source: "Cryptology ePrint Archive",
+              },
+            },
+            timestamp: new Date().toISOString(),
+          },
+        },
+        {
+          delay: 4800,
+          event: {
+            type: "task_status",
+            data: {
+              report_id: reportId,
+              run_id: `run-${reportId}-r1`,
+              task_id: `task-${reportId}-r1`,
               status: "succeeded",
               agent_role: "researcher",
-              metadata: { claims: 4, citations: 3 },
+              metadata: {
+                task_type: "research",
+                subtopic: "FLP Impossibility & Asynchronous Bounds",
+                claims: 5,
+                citations: 3,
+              },
             },
             timestamp: new Date().toISOString(),
           },
         },
         {
-          delay: 7500,
+          delay: 6000,
+          event: {
+            type: "task_status",
+            data: {
+              report_id: reportId,
+              run_id: `run-${reportId}-r2`,
+              task_id: `task-${reportId}-r2`,
+              status: "succeeded",
+              agent_role: "researcher",
+              metadata: {
+                task_type: "research",
+                subtopic: "Byzantine Agreement & Quorum Thresholds",
+                claims: 4,
+                citations: 2,
+              },
+            },
+            timestamp: new Date().toISOString(),
+          },
+        },
+        {
+          delay: 7200,
+          event: {
+            type: "task_status",
+            data: {
+              report_id: reportId,
+              run_id: `run-${reportId}-r3`,
+              task_id: `task-${reportId}-r3`,
+              status: "succeeded",
+              agent_role: "researcher",
+              metadata: {
+                task_type: "research",
+                subtopic: "DAG Consensus & Narwhal Mempools",
+                claims: 6,
+                citations: 4,
+              },
+            },
+            timestamp: new Date().toISOString(),
+          },
+        },
+        {
+          delay: 8400,
           event: {
             type: "report_status",
             data: {
               report_id: reportId,
-              run_id: `run-${reportId}-2`,
+              run_id: `run-${reportId}-fc`,
               status: "fact_checking",
               agent_role: "fact_checker",
-              metadata: { confidence_score: 0.98 },
+              metadata: {
+                message: "Cross-checked 15 claims against cited sources",
+                confidence_score: 0.98,
+                contradictions: 0,
+              },
             },
             timestamp: new Date().toISOString(),
           },
         },
         {
-          delay: 10500,
+          delay: 10800,
           event: {
             type: "report_status",
             data: {
               report_id: reportId,
-              run_id: `run-${reportId}-3`,
+              run_id: `run-${reportId}-wr`,
               status: "writing",
               agent_role: "writer",
-              metadata: { sections_authored: 2 },
+              metadata: {
+                message: "Synthesized verified claims into 3 cited markdown sections",
+                sections_authored: 3,
+              },
             },
             timestamp: new Date().toISOString(),
           },
         },
         {
-          delay: 13500,
+          delay: 13200,
           event: {
             type: "report_status",
             data: {
               report_id: reportId,
               status: "complete",
-              metadata: { total_duration_seconds: 13.5 },
+              metadata: {
+                message: "Report finalized and ready for inspection",
+                total_duration_seconds: 13.2,
+              },
             },
             timestamp: new Date().toISOString(),
           },
@@ -145,6 +265,7 @@ export function useReportEvents(
             handleIncomingEvent(reportId, event);
             onEvent?.(event);
             if (event.data.status === "complete") {
+              apiClient.completeMockReport(reportId);
               setConnectionStatus(reportId, "disconnected");
             }
           }
