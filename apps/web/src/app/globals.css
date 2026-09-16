@@ -2,26 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Quorum Design System - Light Theme */
+    --bg: #FAFAF8;
+    --surface: #FFFFFF;
+    --surface-hover: #F4F4F0;
+    --surface-subtle: #F0F0EB;
+    --text-primary: #1A1A18;
+    --text-secondary: #6E6E66;
+    --accent: #4F46E5;
+    --accent-hover: #4338CA;
+    --accent-foreground: #FFFFFF;
+    --border: #E5E5DF;
+    --success: #10B981;
+    --success-subtle: #ECFDF5;
+    --success-text: #065F46;
+    --warning: #F59E0B;
+    --warning-subtle: #FFFBEB;
+    --warning-text: #92400E;
+    --danger: #EF4444;
+    --danger-subtle: #FEF2F2;
+    --danger-text: #991B1B;
+
+    /* Shadcn compatibility tokens */
+    --background: 40 14% 98%;
+    --foreground: 60 4% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 60 4% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 60 4% 10%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 8% 94%;
+    --secondary-foreground: 60 4% 10%;
+    --muted: 40 8% 94%;
+    --muted-foreground: 60 4% 42%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 40 6% 90%;
+    --ring: 243 75% 59%;
+    --radius: 8px;
+    --radius-card: 12px;
+  }
+
+  [data-theme="dark"] {
+    /* Quorum Design System - Dark Theme */
+    --bg: #14141F;
+    --surface: #1C1C2B;
+    --surface-hover: #242437;
+    --surface-subtle: #29293D;
+    --text-primary: #F1EFE8;
+    --text-secondary: #9E9EB0;
+    --accent: #6366F1;
+    --accent-hover: #818CF8;
+    --accent-foreground: #FFFFFF;
+    --border: #2D2D44;
+    --success: #34D399;
+    --success-subtle: rgba(52, 211, 153, 0.15);
+    --success-text: #6EE7B7;
+    --warning: #FBBF24;
+    --warning-subtle: rgba(251, 191, 36, 0.15);
+    --warning-text: #FDE68A;
+    --danger: #F87171;
+    --danger-subtle: rgba(248, 113, 113, 0.15);
+    --danger-text: #FCA5A5;
+
+    /* Shadcn compatibility tokens */
+    --background: 240 22% 10%;
+    --foreground: 43 18% 93%;
+    --card: 240 21% 14%;
+    --card-foreground: 43 18% 93%;
+    --popover: 240 21% 14%;
+    --popover-foreground: 43 18% 93%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 16% 20%;
+    --secondary-foreground: 43 18% 93%;
+    --muted: 240 16% 20%;
+    --muted-foreground: 240 10% 65%;
+    --destructive: 0 62% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 240 20% 22%;
+    --ring: 239 84% 67%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Smooth transition for theme switches on surfaces and cards */
+  header, nav, aside, main, div, section, article {
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .bg-quorum-bg {
+    background-color: var(--bg);
+  }
+  .bg-quorum-surface {
+    background-color: var(--surface);
+  }
+  .text-quorum-primary {
+    color: var(--text-primary);
+  }
+  .text-quorum-secondary {
+    color: var(--text-secondary);
+  }
+  .border-quorum {
+    border-color: var(--border);
   }
 }
