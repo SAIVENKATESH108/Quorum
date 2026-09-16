@@ -269,7 +269,8 @@ class OrchestrationEngine:
             )
         )
 
-        agent = AgentFactory.create(node.agent_role, self.provider)
+        from src.workers.queue import enqueue_agent_task
+
         command = AgentTaskCommand(
             agent_run_id=run_id,
             task_type=node.task_type,
@@ -277,61 +278,16 @@ class OrchestrationEngine:
             max_retries=3,
         )
 
-        result: Optional[AgentResult] = None
-        while True:
-            result = await command.execute(agent, agent_task_model)
-            if result.success:
-                break
-
-            if command.is_retryable(result.error):
-                command.increment_retry()
-                logger.warning(
-                    f"[ENGINE] Retrying node '{node.id}' attempt {command.retry_count}/{command.max_retries}..."
-                )
-                await asyncio.sleep(0.5 * command.retry_count)
-            else:
-                break
-
-        # Persist final task/run state
-        final_run_status = AgentRunStatus.SUCCEEDED if result.success else AgentRunStatus.FAILED
-        final_task_status = AgentTaskStatus.SUCCEEDED if result.success else AgentTaskStatus.FAILED
-
-        async with self.session_factory() as session:
-            stmt_run = (
-                update(AgentRun)
-                .where(AgentRun.id == run_id)
-                .values(
-                    status=final_run_status,
-                    completed_at=datetime.now(timezone.utc),
-                    error_message=result.error if not result.success else None,
-                )
+        try:
+            raw_result = await enqueue_agent_task(command, max_retries=3)
+            result = AgentResult(
+                success=raw_result.get("success", True),
+                output=raw_result.get("output", {}),
+                error=raw_result.get("error"),
             )
-            stmt_task = (
-                update(AgentTask)
-                .where(AgentTask.id == task_id)
-                .values(
-                    status=final_task_status,
-                    retry_count=command.retry_count,
-                    result=result.output if result.success else None,
-                )
-            )
-            await session.execute(stmt_run)
-            await session.execute(stmt_task)
-
-            # If WriterAgent succeeds, persist generated report_sections
-            if result.success and node.agent_role == AgentRole.WRITER:
-                sections = result.output.get("sections", [])
-                for sec in sections:
-                    section_model = ReportSection(
-                        id=uuid.uuid4(),
-                        report_id=report_id,
-                        heading=sec.get("heading", "Section"),
-                        content=sec.get("content", ""),
-                        order_index=sec.get("order_index", 1),
-                    )
-                    session.add(section_model)
-
-            await session.commit()
+        except Exception as exc:
+            logger.error(f"[ENGINE] Task dispatch failed for node {node.id}: {exc}")
+            result = AgentResult(success=False, error=str(exc))
 
         # Publish task completed event
         await self.publisher.publish(

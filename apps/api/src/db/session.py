@@ -22,7 +22,7 @@ def get_async_database_url() -> str:
 
 DATABASE_URL = get_async_database_url()
 
-# Handle asyncpg ssl argument if present in query parameters
+# Handle asyncpg ssl argument and remove unsupported query parameters
 connect_args = {}
 parsed = urlparse(DATABASE_URL)
 if parsed.query:
@@ -31,16 +31,20 @@ if parsed.query:
         sslmode = qs.pop("sslmode")[0]
         if sslmode in ("require", "verify-ca", "verify-full"):
             connect_args["ssl"] = "require"
-        # Reconstruct URL without sslmode to prevent asyncpg errors
-        new_query = urlencode(qs, doseq=True)
-        DATABASE_URL = urlunparse(parsed._replace(query=new_query))
+    # asyncpg does not accept channel_binding or endpoint parameters
+    qs.pop("channel_binding", None)
+    qs.pop("endpoint", None)
+    new_query = urlencode(qs, doseq=True)
+    DATABASE_URL = urlunparse(parsed._replace(query=new_query))
+
+from sqlalchemy import pool
 
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     future=True,
     connect_args=connect_args,
-    pool_pre_ping=True,
+    poolclass=pool.NullPool,
 )
 
 async_session_maker = async_sessionmaker(
