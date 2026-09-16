@@ -102,11 +102,15 @@ class OrchestrationEngine:
 
     def __init__(
         self,
-        provider: AIProvider,
+        provider: Optional[AIProvider] = None,
         session_factory: async_sessionmaker[AsyncSession] = async_session_maker,
         publisher: Optional[StatusPublisher] = None,
     ):
-        self.provider = provider
+        if provider is None:
+            from src.agents.providers import get_default_provider
+            self.provider = get_default_provider()
+        else:
+            self.provider = provider
         self.session_factory = session_factory
         self.publisher = publisher or default_publisher
 

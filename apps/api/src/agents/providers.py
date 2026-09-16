@@ -337,3 +337,16 @@ class ProviderFallbackChain(AIProvider):
         raise ProviderUnavailableError(
             f"All providers in fallback chain failed. Failures: {'; '.join(errors)}"
         )
+
+
+def get_default_provider() -> AIProvider:
+    """Instantiate standard provider fallback chain based on configuration."""
+    from src.agents.providers import AnthropicProvider, NeuralPulseProvider, OpenAIProvider
+
+    providers: List[AIProvider] = [
+        AnthropicProvider(),
+        OpenAIProvider(),
+        NeuralPulseProvider(),
+    ]
+    return ProviderFallbackChain(providers)
+

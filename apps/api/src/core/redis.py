@@ -28,7 +28,9 @@ async def get_redis_client() -> Redis:
         if _redis_client is not None:
             return _redis_client
 
-        redis_url = settings.REDIS_URL or "redis://localhost:6379/0"
+        redis_url = settings.REDIS_URL or "redis://127.0.0.1:6379/0"
+        if "localhost" in redis_url:
+            redis_url = redis_url.replace("localhost", "127.0.0.1")
 
         if not _use_fallback:
             try:
@@ -36,10 +38,10 @@ async def get_redis_client() -> Redis:
                 client = aioredis.from_url(
                     redis_url,
                     decode_responses=True,
-                    socket_timeout=0.2,
-                    socket_connect_timeout=0.2,
+                    socket_timeout=0.1,
+                    socket_connect_timeout=0.1,
                 )
-                await client.ping()
+                await asyncio.wait_for(client.ping(), timeout=0.1)
                 logger.info(f"[REDIS] Connected to Redis at {redis_url}")
                 _redis_client = client
                 return _redis_client
@@ -48,6 +50,7 @@ async def get_redis_client() -> Redis:
                     f"[REDIS] Could not connect to Redis at {redis_url} ({exc}). Using in-memory FakeRedis fallback."
                 )
                 _use_fallback = True
+
 
         # Fallback to shared FakeServer
         try:
