@@ -11,22 +11,21 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 const DEFAULT_CLERK_PK = "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ";
-const DEFAULT_CLERK_SK = "sk_test_NOKlelaDB9z4m8gwrGHt3arkTAVXLw02vHIXnni3P2";
 
 const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || DEFAULT_CLERK_PK;
-const secretKey = process.env.CLERK_SECRET_KEY || DEFAULT_CLERK_SK;
 
 export default clerkMiddleware(
   (auth, req) => {
-    // If route is protected, enforce authentication
+    // If route is protected, redirect to local /sign-in
     if (!isPublicRoute(req)) {
-      auth().protect();
+      auth().protect({
+        unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
+      });
     }
     return NextResponse.next();
   },
   {
     publishableKey,
-    secretKey,
   }
 );
 
