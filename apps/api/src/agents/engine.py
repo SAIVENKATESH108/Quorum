@@ -92,12 +92,40 @@ default_publisher = StatusPublisher()
 
 class OrchestrationEngine:
     """
-    Core Multi-Agent Orchestration Engine:
-    - Accepts report_id and the DAG produced by OrchestratorAgent
-    - Executes independent nodes concurrently using asyncio.gather (parallel research agents)
-    - Waits for all dependencies of a node to reach "succeeded" before dispatching
-    - Publishes state transitions after every step via StatusPublisher
-    - Transitions reports.status: planning -> researching -> fact_checking -> writing -> complete
+    Core Multi-Agent Orchestration Engine (Directed Acyclic Graph Concurrency Engine).
+
+    ARCHITECTURE & DAG EXECUTION MODEL:
+    ====================================
+    Quorum models research workflows as a Directed Acyclic Graph (DAG) of TaskNodes:
+    G = (V, E), where:
+      - V (Vertices): Atomic units of work assigned to specialized agent roles
+                      (ResearcherAgent, FactCheckerAgent, WriterAgent).
+      - E (Directed Edges): Data dependency constraints (A -> B means B requires output of A).
+
+    Wavefront / Topological Scheduling:
+    -----------------------------------
+    Rather than static linear pipelines, the engine employs dynamic topological wavefront
+    scheduling based on generalized Kahn's algorithm principles:
+    1. In-degree Evaluation: At each step, the engine inspects all uncompleted nodes and computes
+       their unresolved dependency set: {dep in node.depends_on | dep not in completed_nodes}.
+    2. Wavefront Extraction: All nodes with in-degree = 0 form the current "execution wave".
+    3. Concurrency via asyncio.gather: All nodes in the wave (e.g. 3-6 independent Researcher
+       agents investigating orthogonal subtopics) are launched concurrently as non-blocking
+       asynchronous tasks.
+    4. Synchronization Barrier: The engine awaits completion of the entire wave before
+       re-evaluating graph state. Once all research nodes succeed, the FactChecker node's
+       dependencies resolve to in-degree 0, allowing it to execute. Once FactChecker finishes,
+       the Writer node's in-degree reaches 0.
+    5. Deadlock & Cycle Safety: If uncompleted nodes remain but no nodes have in-degree = 0,
+       a cycle or unreachable dependency is trapped immediately, triggering structured failure
+       containment rather than hanging indefinitely.
+
+    Dual-Write State & Reactive Event Bus:
+    --------------------------------------
+    Every state change is atomic and dual-written:
+      - Postgres persistence: Updates `agent_runs`, `agent_tasks`, and `reports` for durability.
+      - Redis Pub/Sub broadcast: Emits real-time StatusEvents to WebSocket streams
+        (`report:{report_id}:events`), driving live UI telemetry with sub-second latency.
     """
 
     def __init__(
@@ -115,8 +143,13 @@ class OrchestrationEngine:
         self.publisher = publisher or default_publisher
 
     async def run_report(self, report_id: uuid.UUID) -> bool:
-        """Full pipeline runner: decomposes query into DAG and orchestrates to completion."""
-        # 1. Fetch Report query
+        """
+        Entrypoint for end-to-end report generation pipeline:
+        1. Retrieves user's research query from PostgreSQL.
+        2. Invokes OrchestratorAgent to dynamically generate the task DAG.
+        3. Hands the DAG to execute_dag() for concurrent topological execution.
+        """
+        # Step 1: Fetch initial report record
         async with self.session_factory() as session:
             stmt = select(Report).where(Report.id == report_id)
             res = await session.execute(stmt)
@@ -125,9 +158,10 @@ class OrchestrationEngine:
                 raise ValueError(f"Report not found: {report_id}")
             query = report.query
 
-        # 2. Stage: Planning
+        # Step 2: Transition status to PLANNING and emit websocket event
         await self._update_report_status(report_id, ReportStatus.PLANNING)
 
+        # Step 3: Run OrchestratorAgent to decompose query into topological sub-tasks
         orchestrator_agent = AgentFactory.create(AgentRole.ORCHESTRATOR, self.provider)
         plan_task = AgentTask(
             id=uuid.uuid4(),
@@ -145,20 +179,31 @@ class OrchestrationEngine:
         raw_dag = plan_result.output.get("dag", [])
         dag_nodes = [TaskNode.from_dict(item) for item in raw_dag]
 
-        # 3. Execute DAG
+        # Step 4: Hand over generated task nodes to the DAG concurrency engine
         return await self.execute_dag(report_id, dag_nodes)
 
     async def execute_dag(self, report_id: uuid.UUID, dag_nodes: List[TaskNode]) -> bool:
         """
         Executes the provided TaskNode DAG respecting dependency edges.
         Independent nodes run concurrently via asyncio.gather.
+
+        Algorithm:
+        ----------
+        Loop until all nodes in dag_nodes have succeeded:
+          1. Calculate ready_nodes = { n in dag_nodes | n not in completed and n.depends_on <= completed }.
+          2. If ready_nodes is empty and completed < total: abort (deadlock / cycle detected).
+          3. Broadcast pipeline stage transition (e.g. RESEARCHING, FACT_CHECKING, WRITING).
+          4. Execute all ready_nodes in parallel using asyncio.gather.
+          5. Inspect results: if any node failed, fail-fast and transition Report to FAILED.
+          6. Add successful nodes to completed set and store their outputs in node_results for downstream injection.
         """
         completed_nodes: Set[str] = set()
         node_results: Dict[str, Dict[str, Any]] = {}
         all_node_map = {node.id: node for node in dag_nodes}
 
         while len(completed_nodes) < len(dag_nodes):
-            # Find nodes ready to execute: not completed, and all dependencies in completed_nodes
+            # --- DAG Wavefront Discovery ---
+            # Extract nodes whose prerequisite dependencies have all completed successfully.
             ready_nodes = [
                 node
                 for node in dag_nodes
@@ -166,16 +211,23 @@ class OrchestrationEngine:
                 and all(dep in completed_nodes for dep in node.depends_on)
             ]
 
+            # Deadlock & Cycle Guard: If there are uncompleted nodes but none are ready to run,
+            # the graph contains an unsatisfied dependency edge or an invalid cycle.
             if not ready_nodes:
                 err = f"Deadlock or cyclic dependency detected. Completed: {completed_nodes}"
                 logger.error(err)
                 await self._update_report_status(report_id, ReportStatus.FAILED, error=err)
                 return False
 
-            # Update report status based on current active stage
+            # --- Synchronize Overall Report Stage ---
+            # Derive current user-facing milestone (Researching, Fact-checking, Writing)
+            # based on the dominant agent roles in the active wavefront.
             await self._sync_pipeline_stage(report_id, ready_nodes)
 
-            # Concurrent execution of all ready nodes
+            # --- Parallel Wavefront Execution ---
+            # Launch all ready nodes concurrently as asynchronous tasks.
+            # When ready_nodes contains multiple research subtopics, they execute in parallel,
+            # leveraging Python's asyncio event loop to maximize I/O concurrency against LLM APIs.
             logger.info(
                 f"[ENGINE] Launching {len(ready_nodes)} concurrent tasks: {[n.id for n in ready_nodes]}"
             )
@@ -185,10 +237,10 @@ class OrchestrationEngine:
             ]
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Evaluate batch outcomes
+            # --- Evaluate Wavefront Results & Fail-Fast Guard ---
             for node, res in zip(ready_nodes, batch_results):
                 if isinstance(res, Exception):
-                    err_msg = f"Task {node.id} failed with exception: {res}"
+                    err_msg = f"Task {node.id} failed with unhandled exception: {res}"
                     logger.error(err_msg)
                     await self._update_report_status(report_id, ReportStatus.FAILED, error=err_msg)
                     return False
@@ -198,10 +250,11 @@ class OrchestrationEngine:
                     await self._update_report_status(report_id, ReportStatus.FAILED, error=err_msg)
                     return False
                 else:
+                    # Mark node complete and retain its output for downstream consumer nodes
                     completed_nodes.add(node.id)
                     node_results[node.id] = res.output
 
-        # All nodes completed successfully -> Mark report complete
+        # All nodes across all topological waves completed successfully
         await self._update_report_status(report_id, ReportStatus.COMPLETE)
         logger.info(f"[ENGINE] Report {report_id} pipeline completed successfully!")
         return True
@@ -212,11 +265,21 @@ class OrchestrationEngine:
         node: TaskNode,
         prior_results: Dict[str, Dict[str, Any]],
     ) -> AgentResult:
-        """Executes a single task node with retries, database persistence, and pub/sub events."""
+        """
+        Executes an individual TaskNode within the DAG:
+        1. Context Aggregation: Collates relevant outputs from upstream dependency nodes.
+        2. State Audit Logging: Records initial AgentRun and AgentTask rows in PostgreSQL.
+        3. Real-Time Telemetry: Emits a "task_started" event to the Redis Pub/Sub event bus.
+        4. Decoupled Dispatch: Enqueues an AgentTaskCommand to the Arq queue (or worker fallback).
+        5. Completion Notification: Updates database state and emits a "task_completed" event.
+        """
         run_id = uuid.uuid4()
         task_id = uuid.uuid4()
 
-        # Augment payload with results from upstream dependencies
+        # --- Dynamic Upstream Context Assembly ---
+        # Each specialized agent requires distinct context from prior DAG levels:
+        # - FactChecker requires all claims extracted across all parallel Researcher nodes.
+        # - Writer requires both raw claims AND fact-checker validation scores/citations.
         payload = dict(node.payload)
         if node.agent_role == AgentRole.FACT_CHECKER:
             research_outputs = [
@@ -226,7 +289,6 @@ class OrchestrationEngine:
             ]
             payload["research_outputs"] = research_outputs
         elif node.agent_role == AgentRole.WRITER:
-            # Provide fact checker evaluations and researcher findings
             research_outputs = []
             fact_evaluations = []
             for dep_id in node.depends_on:
@@ -239,7 +301,8 @@ class OrchestrationEngine:
             payload["research_outputs"] = research_outputs
             payload["fact_evaluations"] = fact_evaluations
 
-        # Create AgentRun and AgentTask in DB
+        # --- Dual-Write Persistence (PostgreSQL) ---
+        # Maintain immutable audit history of every agent run and execution attempt
         async with self.session_factory() as session:
             agent_run = AgentRun(
                 id=run_id,
@@ -260,7 +323,8 @@ class OrchestrationEngine:
             session.add(agent_task_model)
             await session.commit()
 
-        # Publish task started event
+        # --- Real-Time Telemetry Broadcast ---
+        # Broadcast immediately to Redis pub/sub so the Next.js frontend shows the node pulsing
         await self.publisher.publish(
             StatusEvent(
                 event_type="task_started",
@@ -275,6 +339,8 @@ class OrchestrationEngine:
 
         from src.workers.queue import enqueue_agent_task
 
+        # --- Command Pattern Execution ---
+        # Encapsulate the unit of execution into an AgentTaskCommand for retry-safe queue processing
         command = AgentTaskCommand(
             agent_run_id=run_id,
             task_type=node.task_type,
@@ -293,7 +359,8 @@ class OrchestrationEngine:
             logger.error(f"[ENGINE] Task dispatch failed for node {node.id}: {exc}")
             result = AgentResult(success=False, error=str(exc))
 
-        # Publish task completed event
+        # --- Terminal Task State Broadcast ---
+        # Notify WebSocket subscribers whether this node succeeded or encountered a failure
         await self.publisher.publish(
             StatusEvent(
                 event_type="task_completed" if result.success else "task_failed",
