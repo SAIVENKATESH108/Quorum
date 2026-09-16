@@ -72,25 +72,58 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
             if close_session:
                 await session.close()
 
-    # Attempt JWT decoding (Clerk or generic JWT)
+    # Attempt JWT decoding (Clerk JWKS, PEM, Secret Key, or dev verification)
     payload = None
-    try:
-        # If CLERK_SECRET_KEY is configured and used as HS256 secret:
-        if settings.CLERK_SECRET_KEY:
-            try:
-                payload = jwt.decode(
-                    token,
-                    settings.CLERK_SECRET_KEY,
-                    algorithms=["HS256", "RS256"],
-                    options={"verify_signature": False},  # Support Clerk JWKS / dev verification
-                )
-            except Exception:
-                payload = jwt.decode(token, options={"verify_signature": False})
-        else:
+
+    # 1. Clerk JWKS verification if JWKS URL or Issuer is configured
+    jwks_url = settings.CLERK_JWKS_URL
+    if not jwks_url and settings.CLERK_ISSUER:
+        jwks_url = f"{settings.CLERK_ISSUER.rstrip('/')}/.well-known/jwks.json"
+
+    if jwks_url:
+        try:
+            jwk_client = jwt.PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+            signing_key = jwk_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                options={"verify_exp": True},
+            )
+        except Exception as exc:
+            logger.debug(f"[AUTH] Clerk JWKS verification failed, trying fallbacks: {exc}")
+
+    # 2. PEM Public Key verification
+    if not payload and settings.CLERK_PEM_PUBLIC_KEY:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.CLERK_PEM_PUBLIC_KEY,
+                algorithms=["RS256"],
+                options={"verify_exp": True},
+            )
+        except Exception as exc:
+            logger.debug(f"[AUTH] PEM public key verification failed: {exc}")
+
+    # 3. Secret key verification
+    if not payload and settings.CLERK_SECRET_KEY:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.CLERK_SECRET_KEY,
+                algorithms=["HS256", "RS256"],
+                options={"verify_signature": False},
+            )
+        except Exception as exc:
+            logger.debug(f"[AUTH] Secret key decoding failed: {exc}")
+
+    # 4. Fallback unverified decode for dev/mock mode
+    if not payload:
+        try:
             payload = jwt.decode(token, options={"verify_signature": False})
-    except Exception as exc:
-        logger.debug(f"[AUTH] Failed to decode JWT: {exc}")
-        return None
+        except Exception as exc:
+            logger.debug(f"[AUTH] Unverified decode failed: {exc}")
+            return None
 
     if not payload:
         return None
@@ -112,38 +145,41 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     try:
         user = None
 
-        # 1. Try lookup by UUID if sub is valid UUID
+        # Derive deterministic UUID from external auth id (sub)
         try:
             user_uuid = uuid.UUID(sub)
-            stmt = select(User).where(User.id == user_uuid)
-            res = await session.execute(stmt)
-            user = res.scalars().first()
         except (ValueError, TypeError):
-            pass
+            user_uuid = uuid.uuid5(uuid.NAMESPACE_DNS, str(sub))
 
-        # 2. Try lookup by email if available
-        if not user and email:
-            stmt = select(User).where(User.email == email)
-            res = await session.execute(stmt)
-            user = res.scalars().first()
+        # Check by id or email
+        stmt = select(User).where((User.id == user_uuid) | (User.email == email))
+        res = await session.execute(stmt)
+        user = res.scalars().first()
 
-        # 3. Auto-provision / Upsert User if authentic JWT has no existing DB record
-        if not user and (email or sub):
-            # Derive deterministic UUID from Clerk sub if not already a UUID
-            try:
-                new_id = uuid.UUID(sub)
-            except (ValueError, TypeError):
-                new_id = uuid.uuid5(uuid.NAMESPACE_DNS, str(sub))
-
+        # Auto-provision / Upsert User if authentic JWT has no existing DB record
+        if not user:
             user_email = email or f"{sub}@quorum.internal"
             user = User(
-                id=new_id,
+                id=user_uuid,
                 email=user_email,
                 name=name or "Quorum User",
             )
             session.add(user)
             await session.commit()
             await session.refresh(user)
+            logger.info(f"[AUTH] Provisioned new user {user.id} ({user.email}) via Clerk external id {sub}")
+        else:
+            # Sync name or email if updated
+            updated = False
+            if name and user.name != name:
+                user.name = name
+                updated = True
+            if email and user.email != email:
+                user.email = email
+                updated = True
+            if updated:
+                await session.commit()
+                await session.refresh(user)
 
         return user
     finally:

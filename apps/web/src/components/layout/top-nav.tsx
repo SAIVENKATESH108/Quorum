@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Layers, Menu } from "lucide-react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -78,22 +79,21 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
           })}
         </nav>
 
-        {/* Right: Theme Toggle + User Avatar/Menu */}
+        {/* Right: Theme Toggle + Clerk User Authentication */}
         <div className="flex items-center gap-2.5">
           <ThemeToggle />
 
-          {/* User Profile Avatar / Menu */}
-          <button
-            type="button"
-            className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-surface-subtle text-xs font-semibold text-text-primary hover:ring-2 hover:ring-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer"
-            aria-label="User account menu for Sai Venkatesh"
-          >
-            <span className="text-text-primary">SV</span>
-            <span
-              className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-success ring-1 ring-surface"
-              aria-label="Online status"
-            />
-          </button>
+          <SignedOut>
+            <Link
+              href="/sign-in"
+              className="rounded-control px-3 py-1.5 text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
+            >
+              Sign In
+            </Link>
+          </SignedOut>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/sign-in" />
+          </SignedIn>
         </div>
       </div>
     </header>

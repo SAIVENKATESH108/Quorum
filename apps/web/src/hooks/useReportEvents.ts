@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { apiClient, isMockApiMode } from "@/lib/api-client";
+import { apiClient, getAuthToken, isMockApiMode } from "@/lib/api-client";
 import {
   ConnectionState,
   ReportEventPayload,
@@ -279,18 +279,14 @@ export function useReportEvents(
     }
 
     // --- Live WebSocket Connection ---
-    function connect() {
+    async function connect() {
       if (!reportId) return;
 
       const wsBase =
         process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "") ||
         "ws://localhost:8000/ws";
 
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("quorum-auth-token") || "mock_token"
-          : "";
-
+      const token = (await getAuthToken()) || "mock_token";
       const wsUrl = `${wsBase}/reports/${reportId}?token=${encodeURIComponent(token)}`;
 
       setConnectionStatus(reportId, retryCountRef.current > 0 ? "reconnecting" : "connecting");

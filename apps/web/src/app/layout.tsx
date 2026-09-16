@@ -42,23 +42,32 @@ export const viewport: Viewport = {
   ],
 };
 
+import { ClerkProvider } from "@clerk/nextjs";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-bg text-text-primary antialiased selection:bg-accent/20 selection:text-accent`}
-      >
-        <TanStackQueryProvider>
-          <ThemeProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </ThemeProvider>
-        </TanStackQueryProvider>
-      </body>
-    </html>
+    <ClerkProvider
+      publishableKey={
+        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+        "pk_test_dG91Y2hpbmctY2FyaWJvdS0yMy5jbGVyay5hY2NvdW50cy5kZXYk"
+      }
+    >
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-bg text-text-primary antialiased selection:bg-accent/20 selection:text-accent`}
+        >
+          <TanStackQueryProvider>
+            <ThemeProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </ThemeProvider>
+          </TanStackQueryProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
 

@@ -175,6 +175,49 @@ const mockReports: Record<string, ReportDetailResponse> = {
   },
 };
 
+// --- Auth Token Retrieval Helper ---
+
+type TokenGetter = () => Promise<string | null>;
+let customTokenGetter: TokenGetter | null = null;
+
+export function setAuthTokenGetter(getter: TokenGetter) {
+  customTokenGetter = getter;
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  if (customTokenGetter) {
+    try {
+      const t = await customTokenGetter();
+      if (t) return t;
+    } catch {
+      // fallback
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // 1. Try Clerk session token if available
+    try {
+      const clerk = (
+        window as unknown as {
+          Clerk?: { session?: { getToken: () => Promise<string | null> } };
+        }
+      ).Clerk;
+      if (clerk?.session) {
+        const clerkToken = await clerk.session.getToken();
+        if (clerkToken) return clerkToken;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Try localStorage token
+    const localToken = localStorage.getItem("quorum-auth-token");
+    if (localToken) return localToken;
+  }
+
+  return "mock_token";
+}
+
 // --- HTTP Fetch Helper with Error Serialization ---
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -182,8 +225,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   let authHeader = "";
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("quorum-auth-token") || "mock_token";
-    authHeader = `Bearer ${token}`;
+    const token = await getAuthToken();
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
   }
 
   const headers: HeadersInit = {

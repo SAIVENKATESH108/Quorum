@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     NEURAL_PULSE_API_KEY: Optional[str] = None
     CLERK_SECRET_KEY: Optional[str] = None
+    CLERK_JWKS_URL: Optional[str] = None
+    CLERK_ISSUER: Optional[str] = None
+    CLERK_PEM_PUBLIC_KEY: Optional[str] = None
 
     # CORS origins
     CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
