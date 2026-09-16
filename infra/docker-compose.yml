@@ -54,6 +54,26 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: quorum-worker
+    restart: unless-stopped
+    command: ["python", "-m", "src.workers.main"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/quorum}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NEURAL_PULSE_API_KEY: ${NEURAL_PULSE_API_KEY:-}
+      RUN_MIGRATIONS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   web:
     build:
       context: ../apps/web
