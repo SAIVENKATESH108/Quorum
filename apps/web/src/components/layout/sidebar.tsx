@@ -10,11 +10,15 @@ import {
   Folder,
   Plus,
   Radio,
+  RotateCcw,
   Settings,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProjects } from "@/hooks/useProjects";
+import { useUiStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -24,13 +28,8 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-
-  // Demo projects for navigation shell
-  const projects = [
-    { id: "1", title: "Consensus Mechanisms", reportsCount: 4 },
-    { id: "2", title: "Autonomous Agent Swarms", reportsCount: 6 },
-    { id: "3", title: "Quantum Cryptography", reportsCount: 2 },
-  ];
+  const setActiveModal = useUiStore((state) => state.setActiveModal);
+  const { data: projects = [], isLoading, isError, refetch } = useProjects();
 
   // Demo recent reports with live status badges
   const recentReports = [
@@ -61,7 +60,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Action Button: Create New Project */}
         <div>
           <Button
-            className="w-full justify-start gap-2 shadow-sm font-semibold"
+            onClick={() => {
+              setActiveModal("create_project");
+              onClose();
+            }}
+            className="w-full justify-start gap-2 shadow-sm font-semibold cursor-pointer"
             size="sm"
             aria-label="Create a new research project"
           >
@@ -75,35 +78,55 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="flex items-center justify-between px-2 text-xs font-semibold tracking-wider text-text-secondary uppercase">
             <span>Projects</span>
             <span className="text-[11px] font-normal lowercase opacity-70">
-              {projects.length} active
+              {isLoading ? "loading..." : `${projects.length} active`}
             </span>
           </div>
 
           <nav aria-label="Projects list" className="space-y-1">
-            {projects.map((proj) => {
-              const active = pathname.includes(`/projects/${proj.id}`);
-              return (
-                <Link
-                  key={proj.id}
-                  href={`/projects/${proj.id}`}
-                  onClick={() => onClose()}
-                  className={cn(
-                    "group flex items-center justify-between rounded-control px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                    active
-                      ? "bg-surface-hover font-semibold text-text-primary"
-                      : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                  )}
+            {isLoading ? (
+              <div className="space-y-2 py-1">
+                <Skeleton className="h-8 w-full rounded-control" />
+                <Skeleton className="h-8 w-full rounded-control" />
+                <Skeleton className="h-8 w-3/4 rounded-control" />
+              </div>
+            ) : isError ? (
+              <div className="rounded-control bg-danger-subtle p-2 text-xs text-danger-text">
+                <p>Failed to load projects.</p>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="mt-1 inline-flex items-center gap-1 font-semibold underline cursor-pointer"
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <Folder className="h-4 w-4 shrink-0 text-accent/80" aria-hidden="true" />
-                    <span className="truncate">{proj.title}</span>
-                  </div>
-                  <span className="rounded-full bg-surface-subtle px-1.5 py-0.5 text-[11px] text-text-secondary">
-                    {proj.reportsCount}
-                  </span>
-                </Link>
-              );
-            })}
+                  <RotateCcw className="h-3 w-3" /> Retry
+                </button>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-text-secondary">
+                No projects created yet.
+              </div>
+            ) : (
+              projects.map((proj) => {
+                const active = pathname.includes(`/projects/${proj.id}`);
+                return (
+                  <Link
+                    key={proj.id}
+                    href={`/projects/${proj.id}`}
+                    onClick={() => onClose()}
+                    className={cn(
+                      "group flex items-center justify-between rounded-control px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      active
+                        ? "bg-surface-hover font-semibold text-text-primary"
+                        : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Folder className="h-4 w-4 shrink-0 text-accent/80" aria-hidden="true" />
+                      <span className="truncate">{proj.title}</span>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </nav>
         </div>
 
@@ -153,7 +176,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span className="text-[10px] text-success font-semibold">ONLINE</span>
           </div>
           <p className="text-[11px] text-text-secondary leading-tight">
-            Orchestrator, Researcher, Fact-Checker & Writer ready.
+            Orchestrator, Researcher, Fact-Checker &amp; Writer ready.
           </p>
         </div>
 

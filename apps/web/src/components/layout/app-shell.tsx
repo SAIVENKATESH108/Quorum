@@ -1,22 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { Sidebar } from "./sidebar";
 import { TopNav } from "./top-nav";
+import { useUiStore } from "@/stores/uiStore";
+import { CreateProjectModal } from "@/components/modals/create-project-modal";
+import { CreateReportModal } from "@/components/modals/create-report-modal";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const isSidebarOpen = useUiStore((state) => state.isSidebarOpen);
+  const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
 
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col">
       {/* Sticky Top Navigation */}
-      <TopNav onOpenMobileMenu={() => setMobileDrawerOpen(true)} />
+      <TopNav onOpenMobileMenu={() => setSidebarOpen(true)} />
 
       {/* Main Layout Area: Sidebar + Page Content */}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          isOpen={mobileDrawerOpen}
-          onClose={() => setMobileDrawerOpen(false)}
+          isOpen={isSidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
 
         {/* Scrollable Main Content Container */}
@@ -28,6 +32,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Modals managed by uiStore */}
+      <CreateProjectModal />
+      <CreateReportModal />
     </div>
   );
 }

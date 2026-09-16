@@ -8,9 +8,11 @@ import {
   Cpu,
   FileCheck,
   Play,
-  Radio,
+  RotateCcw,
   ShieldCheck,
   Sparkles,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -24,30 +26,57 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
+import { useProjects } from "@/hooks/useProjects";
+import { useReportEvents } from "@/hooks/useReportEvents";
+import { useReports } from "@/hooks/useReports";
+import { isMockApiMode, setMockApiMode } from "@/lib/api-client";
+import { useUiStore } from "@/stores/uiStore";
 
 export default function HomePage() {
   const { toast } = useToast();
-  const [loadingState, setLoadingState] = useState(false);
+  const setActiveModal = useUiStore((state) => state.setActiveModal);
+  const selectedReportId = useUiStore((state) => state.selectedReportId);
+  const setSelectedReportId = useUiStore((state) => state.setSelectedReportId);
 
-  const handleSimulateToast = (type: "success" | "destructive" | "default") => {
-    if (type === "success") {
-      toast({
-        title: "Report Synthesis Complete",
-        description: "12 citations verified with 98.4% confidence score across 4 agent runs.",
-        variant: "success",
-      });
-    } else if (type === "destructive") {
-      toast({
-        title: "Rate Limit Exceeded",
-        description: "Sliding window threshold reached (10/hr). Cooldown resets in 42 minutes.",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Agent Swarm Dispatched",
-        description: "3 parallel researcher nodes decomposed and queued for execution.",
-      });
-    }
+  // TanStack Query: Fetch projects
+  const {
+    data: projects = [],
+    isLoading: isProjectsLoading,
+    isError: isProjectsError,
+  } = useProjects();
+
+  const selectedProjectId = projects.length > 0 ? projects[0].id : undefined;
+
+  // TanStack Query: Fetch reports for first active project
+  const {
+    data: reports = [],
+    isLoading: isReportsLoading,
+    isError: isReportsError,
+    refetch: refetchReports,
+  } = useReports(selectedProjectId);
+
+  // Default to selected report id or first available report
+  const activeReportId = selectedReportId || (reports.length > 0 ? reports[0].id : null);
+  const activeReport = reports.find((r) => r.id === activeReportId) || reports[0];
+
+  // Real-time WebSocket hook for active report
+  const { status: liveStatus, connectionState, events: liveEvents } = useReportEvents(
+    activeReportId,
+    { status: activeReport?.status }
+  );
+
+  const [isMockMode, setIsMockModeState] = useState(() => isMockApiMode());
+
+  const toggleMockMode = () => {
+    const next = !isMockMode;
+    setMockApiMode(next);
+    setIsMockModeState(next);
+    toast({
+      title: next ? "Switched to Mock API Mode" : "Switched to Live API Mode",
+      description: next
+        ? "API client using local deterministic mock data."
+        : "API client targeting backend at NEXT_PUBLIC_API_URL.",
+    });
   };
 
   return (
@@ -62,14 +91,21 @@ export default function HomePage() {
                 Multi-Agent Platform
               </span>
               <span className="text-xs text-text-secondary">•</span>
-              <span className="text-xs text-text-secondary">v0.1.0 Alpha</span>
+              <button
+                type="button"
+                onClick={toggleMockMode}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                title="Toggle between Mock API and Live Backend API"
+              >
+                <span>API: {isMockMode ? "Mock Mode" : "Live Backend"}</span>
+              </button>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
               Research Operations
             </h1>
             <p className="mt-1 text-sm text-text-secondary sm:text-base max-w-2xl">
               Coordinate autonomous agent swarms to decompose complex queries, cross-verify
-              facts, and synthesize structured intelligence reports.
+              facts across sources, and synthesize structured reports.
             </p>
           </div>
 
@@ -78,20 +114,19 @@ export default function HomePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleSimulateToast("default")}
+              onClick={() => setActiveModal("create_project")}
               className="gap-1.5 font-medium"
             >
-              <Radio className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-              Test Toast
+              <span>+ New Project</span>
             </Button>
 
             <Button
               size="sm"
-              className="gap-2 shadow-sm font-semibold"
-              onClick={() => handleSimulateToast("success")}
+              className="gap-2 shadow-sm font-semibold cursor-pointer"
+              onClick={() => setActiveModal("create_report")}
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              New Research Run
+              Launch Research Run
             </Button>
           </div>
         </div>
@@ -101,17 +136,27 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Active Swarms
+                Active Projects
               </CardTitle>
               <Bot className="h-4 w-4 text-accent" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-text-primary">4 / 4 Nodes</div>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
-                <Badge variant="running" dot>
-                  Parallel Execution
-                </Badge>
-              </div>
+              {isProjectsLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : isProjectsError ? (
+                <div className="text-xs text-danger">Failed to load</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-text-primary">
+                    {projects.length}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
+                    <Badge variant="running" dot>
+                      Active Pool
+                    </Badge>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -125,9 +170,7 @@ export default function HomePage() {
             <CardContent>
               <div className="text-2xl font-bold text-text-primary">99.1%</div>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
-                <span className="text-success font-semibold flex items-center">
-                  +2.4%
-                </span>
+                <span className="text-success font-semibold flex items-center">+2.4%</span>
                 <span>vs baseline LLM</span>
               </div>
             </CardContent>
@@ -153,15 +196,25 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Circuit Breakers
+                WebSocket Channel
               </CardTitle>
               <Cpu className="h-4 w-4 text-warning" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-text-primary">CLOSED</div>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
-                <span className="text-success font-semibold">100% Healthy</span>
-                <span>(3 providers)</span>
+              <div className="flex items-center gap-2 text-xl font-bold text-text-primary">
+                {connectionState === "connected" ? (
+                  <Wifi className="h-5 w-5 text-success animate-pulse" />
+                ) : (
+                  <WifiOff className="h-5 w-5 text-text-secondary" />
+                )}
+                <span className="capitalize text-base font-semibold">
+                  {connectionState}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-text-secondary">
+                {liveEvents.length > 0
+                  ? `${liveEvents.length} events streamed`
+                  : "report:events ready"}
               </div>
             </CardContent>
           </Card>
@@ -174,34 +227,61 @@ export default function HomePage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Agent Mesh</CardTitle>
-                <Badge variant="running" dot>
-                  Healthy
+                <Badge
+                  variant={
+                    liveStatus === "complete"
+                      ? "complete"
+                      : liveStatus === "failed"
+                      ? "failed"
+                      : "running"
+                  }
+                  dot
+                >
+                  {liveStatus || "Healthy"}
                 </Badge>
               </div>
               <CardDescription>
-                Topological orchestration pipeline status
+                Topological orchestration pipeline status for active run
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
                 {
                   role: "Orchestrator",
-                  status: "complete" as const,
+                  status:
+                    liveStatus === "pending" || liveStatus === "planning"
+                      ? ("running" as const)
+                      : ("complete" as const),
                   desc: "Decomposes queries into 3-6 subtopics",
                 },
                 {
                   role: "Researchers (3x)",
-                  status: "running" as const,
+                  status:
+                    liveStatus === "researching"
+                      ? ("running" as const)
+                      : ["fact_checking", "writing", "complete"].includes(liveStatus || "")
+                      ? ("complete" as const)
+                      : ("pending" as const),
                   desc: "Parallel literature retrieval & claim tagging",
                 },
                 {
                   role: "Fact Checker",
-                  status: "pending" as const,
+                  status:
+                    liveStatus === "fact_checking"
+                      ? ("running" as const)
+                      : ["writing", "complete"].includes(liveStatus || "")
+                      ? ("complete" as const)
+                      : ("pending" as const),
                   desc: "Cross-checks claims & assigns confidence",
                 },
                 {
                   role: "Synthesizer Writer",
-                  status: "pending" as const,
+                  status:
+                    liveStatus === "writing"
+                      ? ("running" as const)
+                      : liveStatus === "complete"
+                      ? ("complete" as const)
+                      : ("pending" as const),
                   desc: "Compiles cited sections with ordered headers",
                 },
               ].map((agent, i) => (
@@ -218,9 +298,7 @@ export default function HomePage() {
                         {agent.role}
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary pl-7">
-                      {agent.desc}
-                    </p>
+                    <p className="text-xs text-text-secondary pl-7">{agent.desc}</p>
                   </div>
                   <Badge variant={agent.status} dot>
                     {agent.status}
@@ -236,24 +314,24 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-semibold">
-                    Recent Research Reports
+                    Live Research Reports
                   </CardTitle>
                   <CardDescription>
-                    Real-time status streamed via WebSocket channels
+                    Real-time status streamed via TanStack Query and WebSocket
                   </CardDescription>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => setLoadingState(!loadingState)}
-                  className="text-xs text-text-secondary"
+                  onClick={() => refetchReports()}
+                  className="gap-1.5 text-xs text-text-secondary cursor-pointer"
                 >
-                  {loadingState ? "Show Real Data" : "Toggle Skeletons"}
+                  <RotateCcw className="h-3 w-3" /> Refresh
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {loadingState ? (
+              {isReportsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((n) => (
                     <div
@@ -268,140 +346,90 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
+              ) : isReportsError ? (
+                <div className="rounded-control bg-danger-subtle p-4 text-xs text-danger-text">
+                  <p className="font-semibold">Failed to load reports.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchReports()}
+                    className="mt-2 text-xs"
+                  >
+                    Retry Query
+                  </Button>
+                </div>
+              ) : reports.length === 0 ? (
+                <div className="text-center py-8 space-y-3">
+                  <p className="text-sm text-text-secondary">No reports created yet.</p>
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveModal("create_report")}
+                    className="gap-1.5"
+                  >
+                    <Play className="h-3.5 w-3.5" /> Start First Research Run
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-2.5">
-                  {[
-                    {
-                      id: "rep-1",
-                      title: "Fault-Tolerant Consensus in Asynchronous Networks",
-                      project: "Distributed Systems Benchmark",
-                      status: "running" as const,
-                      time: "Running for 42s",
-                    },
-                    {
-                      id: "rep-2",
-                      title: "Optimistic Rollups vs ZK Rollups Performance",
-                      project: "High-Throughput Consensus",
-                      status: "complete" as const,
-                      time: "Completed 24m ago",
-                    },
-                    {
-                      id: "rep-3",
-                      title: "Transformer Memory Bottlenecks in Long-Context LLMs",
-                      project: "Neural Architectures",
-                      status: "pending" as const,
-                      time: "Queued in task pool",
-                    },
-                    {
-                      id: "rep-4",
-                      title: "Zero-Knowledge SNARK Verification in EVM",
-                      project: "Confidential Research",
-                      status: "failed" as const,
-                      time: "Failed: Provider timeout",
-                    },
-                  ].map((report) => (
-                    <div
-                      key={report.id}
-                      className="group flex flex-col sm:flex-row sm:items-center justify-between rounded-control border border-border bg-surface p-3.5 transition-colors hover:border-accent/40 hover:bg-surface-hover gap-3"
-                    >
-                      <div className="space-y-1">
-                        <Link
-                          href={`/reports/${report.id}`}
-                          className="text-sm font-semibold text-text-primary group-hover:text-accent transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-                        >
-                          <span>{report.title}</span>
-                          <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </Link>
-                        <div className="flex items-center gap-2 text-xs text-text-secondary">
-                          <span>{report.project}</span>
-                          <span>•</span>
-                          <span>{report.time}</span>
+                  {reports.map((report) => {
+                    const isSelected = report.id === activeReportId;
+                    const reportLiveStatus =
+                      isSelected && liveStatus ? liveStatus : report.status;
+
+                    return (
+                      <div
+                        key={report.id}
+                        onClick={() => setSelectedReportId(report.id)}
+                        className={`group flex flex-col sm:flex-row sm:items-center justify-between rounded-control border p-3.5 transition-all cursor-pointer gap-3 ${
+                          isSelected
+                            ? "border-accent bg-accent/5 shadow-xs"
+                            : "border-border bg-surface hover:border-accent/40 hover:bg-surface-hover"
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <Link
+                            href={`/reports/${report.id}`}
+                            className="text-sm font-semibold text-text-primary group-hover:text-accent transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                          >
+                            <span>{report.query}</span>
+                            <ArrowUpRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Link>
+                          <div className="flex items-center gap-2 text-xs text-text-secondary">
+                            <span>Project: {selectedProjectId || "Consensus"}</span>
+                            <span>•</span>
+                            <span>
+                              {new Date(report.created_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-start sm:self-center">
+                          <Badge
+                            variant={
+                              reportLiveStatus === "complete"
+                                ? "complete"
+                                : reportLiveStatus === "failed"
+                                ? "failed"
+                                : reportLiveStatus === "pending"
+                                ? "pending"
+                                : "running"
+                            }
+                            dot
+                          >
+                            {reportLiveStatus}
+                          </Badge>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3 self-start sm:self-center">
-                        <Badge variant={report.status} dot>
-                          {report.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Design System & Accessibility Primitives Showcase */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Design System Showcase
-            </CardTitle>
-            <CardDescription>
-              Verified light and dark theme contrast tokens, button variants, status indicators, and focus states.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Status Badges Matrix */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2.5">
-                Status Badge Indicators
-              </h4>
-              <div className="flex flex-wrap gap-2.5">
-                <Badge variant="pending" dot>
-                  pending (Amber)
-                </Badge>
-                <Badge variant="running" dot>
-                  running (Indigo Pulse)
-                </Badge>
-                <Badge variant="complete" dot>
-                  complete (Emerald)
-                </Badge>
-                <Badge variant="failed" dot>
-                  failed (Rose)
-                </Badge>
-                <Badge variant="secondary">
-                  secondary token
-                </Badge>
-                <Badge variant="outline">
-                  outline token
-                </Badge>
-              </div>
-            </div>
-
-            {/* Buttons Matrix */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2.5">
-                Button Component Variants & Accessibility Focus States
-              </h4>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Button variant="default" size="sm">
-                  Default (Primary)
-                </Button>
-                <Button variant="secondary" size="sm">
-                  Secondary
-                </Button>
-                <Button variant="outline" size="sm">
-                  Outline
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleSimulateToast("destructive")}
-                >
-                  Destructive
-                </Button>
-                <Button variant="ghost" size="sm">
-                  Ghost
-                </Button>
-                <Button variant="link" size="sm">
-                  Link
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppShell>
   );
