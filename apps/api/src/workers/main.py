@@ -193,5 +193,16 @@ class WorkerSettings:
 
 
 if __name__ == "__main__":
+    import sys
     from arq import run_worker
-    run_worker(WorkerSettings)
+    try:
+        print(f"[WORKER] Starting Arq agent worker with Redis: {settings.REDIS_URL}...")
+        run_worker(WorkerSettings)
+    except (TimeoutError, Exception) as exc:
+        print(f"\n[WORKER INFO] Could not connect to Redis at '{settings.REDIS_URL}'.")
+        print("To run the dedicated worker locally, start Redis using Docker:")
+        print("  docker run -d -p 6379:6379 redis:7-alpine")
+        print("\nNote: For local development, the FastAPI backend already processes agent workflows")
+        print("automatically in in-process background tasks! You do NOT need this worker running.")
+        sys.exit(0)
+

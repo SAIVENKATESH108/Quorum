@@ -10,19 +10,25 @@ const isPublicRoute = createRouteMatcher([
   "/favicon.ico",
 ]);
 
-const hasClerkSecret = Boolean(
-  process.env.CLERK_SECRET_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes("your_clerk")
-);
+const DEFAULT_CLERK_PK = "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ";
+const DEFAULT_CLERK_SK = "sk_test_NOKlelaDB9z4m8gwrGHt3arkTAVXLw02vHIXnni3P2";
 
-export default clerkMiddleware((auth, req) => {
-  // If valid Clerk keys are configured and route is not public, protect the route
-  if (hasClerkSecret && !isPublicRoute(req)) {
-    auth().protect();
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || DEFAULT_CLERK_PK;
+const secretKey = process.env.CLERK_SECRET_KEY || DEFAULT_CLERK_SK;
+
+export default clerkMiddleware(
+  (auth, req) => {
+    // If route is protected, enforce authentication
+    if (!isPublicRoute(req)) {
+      auth().protect();
+    }
+    return NextResponse.next();
+  },
+  {
+    publishableKey,
+    secretKey,
   }
-  return NextResponse.next();
-});
+);
 
 export const config = {
   matcher: [
