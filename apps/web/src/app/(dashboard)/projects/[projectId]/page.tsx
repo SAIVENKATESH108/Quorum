@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -10,12 +10,9 @@ import {
   Clock,
   FilePlus,
   FileText,
-  Filter,
   Folder,
-  Layers,
   Plus,
   Search,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +37,6 @@ function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "r
 
 export default function ProjectDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const projectId = params.projectId as string;
 
   const { data: projects = [], isLoading: projectsLoading } = useProjects();

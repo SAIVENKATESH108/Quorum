@@ -54,6 +54,19 @@ export interface ReportDetailResponse extends ReportSummaryResponse {
   sources: SourceResponse[];
 }
 
+export interface HarvestedSourceItem {
+  id: string;
+  url: string;
+  title: string;
+  domain: string;
+  category: string;
+  report_id?: string | null;
+  report_title?: string | null;
+  citation_count?: number;
+  verified?: boolean;
+  confidence?: number;
+}
+
 // --- Typed API Error ---
 
 export class ApiError extends Error {
@@ -240,13 +253,13 @@ export const apiClient = {
     });
   },
 
-  async getSources(params?: { q?: string; category?: string }): Promise<any[]> {
+  async getSources(params?: { q?: string; category?: string }): Promise<HarvestedSourceItem[]> {
     const searchParams = new URLSearchParams();
     if (params?.q) searchParams.set("q", params.q);
     if (params?.category) searchParams.set("category", params.category);
     const qs = searchParams.toString();
     const path = `/api/sources${qs ? `?${qs}` : ""}`;
-    return request<any[]>(path);
+    return request<HarvestedSourceItem[]>(path);
   },
 
   completeMockReport(..._args: unknown[]): void {

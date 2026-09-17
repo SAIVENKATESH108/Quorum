@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquare,
   Send,
   X,
   Bot,
@@ -12,7 +11,6 @@ import {
   ExternalLink,
   ShieldCheck,
   RefreshCw,
-  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,7 +100,7 @@ export function ReportChatDrawer({
       };
 
       setMessages((prev) => [...prev, swarmMsg]);
-    } catch (err) {
+    } catch {
       const errorMsg: ChatMessage = {
         id: `error-${Date.now()}`,
         sender: "swarm",

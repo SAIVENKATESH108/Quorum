@@ -4,16 +4,12 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   BookOpen,
-  CheckCircle2,
   Copy,
   Download,
   ExternalLink,
   FileCode,
-  FileText,
-  Filter,
   Globe,
   Search,
-  Share2,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";

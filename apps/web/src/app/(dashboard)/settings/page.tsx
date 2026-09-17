@@ -3,22 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
-  Activity,
-  AlertTriangle,
   CheckCircle2,
   Cpu,
-  Gauge,
-  Key,
-  Layers,
   RefreshCw,
   Save,
   Settings,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
   Sliders,
-  Sparkles,
-  Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +40,6 @@ export default function WorkspaceSettingsPage() {
   const [concurrencyFactor, setConcurrencyFactor] = useState(4);
   const [factCheckThreshold, setFactCheckThreshold] = useState(85);
   const [citationFormat, setCitationFormat] = useState("academic");
-  const [enableWebSearch, setEnableWebSearch] = useState(true);
   const [isPinging, setIsPinging] = useState(false);
 
   // Load saved preferences from localStorage on mount
@@ -61,7 +51,7 @@ export default function WorkspaceSettingsPage() {
       if (savedThreshold) setFactCheckThreshold(parseInt(savedThreshold, 10));
       const savedCitation = localStorage.getItem("quorum_citation_format");
       if (savedCitation) setCitationFormat(savedCitation);
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, []);
@@ -140,7 +130,7 @@ export default function WorkspaceSettingsPage() {
         title: "Preferences saved",
         description: "Your multi-agent research defaults have been updated.",
       });
-    } catch (e) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to save preferences to browser storage.",
