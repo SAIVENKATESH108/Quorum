@@ -17,16 +17,39 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Quorum — AI agents that research, verify, and write",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://quorum-research.vercel.app"
+  ),
+  title: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
   description:
-    "Collaborative multi-agent intelligence platform that decomposes research queries, validates facts across verified sources, and generates structured reports.",
+    "Collaborative multi-agent intelligence platform that decomposes research queries, validates facts across verified academic DOIs and primary sources, and generates structured reports.",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "Quorum — AI agents that research, verify, and write",
+    title: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
     description:
-      "Collaborative multi-agent intelligence platform that decomposes research queries, validates facts across verified sources, and generates structured reports.",
+      "Transform complex research queries into rigorously cited, fact-checked intelligence reports in minutes using parallel agent swarms.",
+    url: "https://quorum-research.vercel.app",
     siteName: "Quorum",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
+      },
+    ],
     type: "website",
     locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
+    description:
+      "Transform complex research queries into rigorously cited, fact-checked intelligence reports in minutes using parallel agent swarms.",
+    images: ["/og-image.png"],
+    creator: "@QuorumAI",
   },
   icons: {
     icon: "/favicon.ico",
