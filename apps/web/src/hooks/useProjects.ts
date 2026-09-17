@@ -33,8 +33,8 @@ export function useProjects() {
         throw err;
       }
     },
-    // Prevent fetching before Clerk is initialized to avoid unauthenticated/mock token queries
-    enabled: isLoaded && !!isSignedIn,
+    // Allow querying in both authenticated and guest/demo mode once auth is initialized
+    enabled: isLoaded,
   });
 }
 

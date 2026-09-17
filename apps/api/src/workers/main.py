@@ -19,6 +19,8 @@ from src.db.models import (
     AgentTask,
     AgentTaskStatus,
     ReportSection,
+    ReportSource,
+    Source,
 )
 from src.db.session import async_session_maker
 
@@ -40,7 +42,7 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
     3. Updates agent_tasks and agent_runs to RUNNING
     4. Publishes real-time status event to Redis channel: report:{report_id}:events
     5. Executes command via the concrete Agent
-    6. Updates database rows (agent_tasks, agent_runs, report_sections) with outcomes
+    6. Updates database rows (agent_tasks, agent_runs, report_sections, sources) with outcomes
     7. Publishes final completion/failure event
     """
     command = AgentTaskCommand.from_dict(command_data)
@@ -135,11 +137,39 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
             )
         )
 
+        # Persist sources if researcher generated claims
+        if result.success and agent_role == AgentRole.RESEARCHER:
+            claims = result.output.get("claims", [])
+            for claim in claims:
+                url = claim.get("source_url")
+                if not url:
+                    continue
+                title = claim.get("source_title") or f"Scholarly Reference: {claim.get('claim_text', '')[:70]}"
+
+                src_stmt = select(Source).where(Source.url == url)
+                src_res = await session.execute(src_stmt)
+                source_rec = src_res.scalars().first()
+                if not source_rec:
+                    source_rec = Source(
+                        id=uuid.uuid4(),
+                        url=url[:2048],
+                        title=title[:512],
+                    )
+                    session.add(source_rec)
+                    await session.flush()
+
+                rs_stmt = select(ReportSource).where(
+                    ReportSource.report_id == report_id,
+                    ReportSource.source_id == source_rec.id,
+                )
+                rs_res = await session.execute(rs_stmt)
+                if not rs_res.scalars().first():
+                    session.add(ReportSource(report_id=report_id, source_id=source_rec.id))
+
         # If WriterAgent successfully generated sections, persist them
         if result.success and agent_role == AgentRole.WRITER:
             sections = result.output.get("sections", [])
             for sec in sections:
-                # Truncate heading to 250 chars to avoid VARCHAR overflow
                 heading = str(sec.get("heading", "Section"))[:250]
                 section_model = ReportSection(
                     id=uuid.uuid4(),
@@ -149,6 +179,36 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
                     order_index=sec.get("order_index", 1),
                 )
                 session.add(section_model)
+                await session.flush()
+
+                for cite_url in sec.get("citations", []):
+                    if not cite_url:
+                        continue
+                    src_stmt = select(Source).where(Source.url == cite_url)
+                    src_res = await session.execute(src_stmt)
+                    source_rec = src_res.scalars().first()
+                    if not source_rec:
+                        source_rec = Source(
+                            id=uuid.uuid4(),
+                            url=cite_url[:2048],
+                            title=f"Cited Reference: {heading[:80]}",
+                        )
+                        session.add(source_rec)
+                        await session.flush()
+
+                    rs_stmt = select(ReportSource).where(
+                        ReportSource.report_id == report_id,
+                        ReportSource.source_id == source_rec.id,
+                    )
+                    rs_res = await session.execute(rs_stmt)
+                    if not rs_res.scalars().first():
+                        session.add(
+                            ReportSource(
+                                report_id=report_id,
+                                source_id=source_rec.id,
+                                cited_in_section_id=section_model.id,
+                            )
+                        )
 
         await session.commit()
 

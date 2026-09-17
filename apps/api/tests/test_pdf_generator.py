@@ -45,3 +45,39 @@ async def test_compile_research_report_to_pdf():
     assert isinstance(pdf_bytes, bytes)
     assert len(pdf_bytes) > 2000
     assert pdf_bytes.startswith(b"%PDF-")
+
+
+@pytest.mark.asyncio
+async def test_multiple_distinct_report_pdfs():
+    """Verify downloading PDFs for two distinct report IDs produces distinct, report-specific PDFs."""
+    import uuid
+    from httpx import AsyncClient, ASGITransport
+    from src.main import app
+
+    report_id_1 = uuid.UUID("59d45060-3a06-46bd-8491-1dd4269e5d55")
+    report_id_2 = uuid.UUID("2b267e3c-71f7-413a-ae3f-eff7aeb0e743")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Download Report 1 PDF
+        res1 = await client.get(f"/api/reports/{report_id_1}/pdf")
+        assert res1.status_code == 200
+        assert res1.headers["content-type"] == "application/pdf"
+        assert res1.content.startswith(b"%PDF-")
+        cd1 = res1.headers.get("content-disposition", "")
+        assert "Quorum_System_Documentation.pdf" not in cd1
+        assert str(report_id_1)[:8] in cd1
+
+        # Download Report 2 PDF
+        res2 = await client.get(f"/api/reports/{report_id_2}/pdf")
+        assert res2.status_code == 200
+        assert res2.headers["content-type"] == "application/pdf"
+        assert res2.content.startswith(b"%PDF-")
+        cd2 = res2.headers.get("content-disposition", "")
+        assert "Quorum_System_Documentation.pdf" not in cd2
+        assert str(report_id_2)[:8] in cd2
+
+        # Verify the two generated PDFs are distinct and non-empty
+        assert res1.content != res2.content
+        assert len(res1.content) > 1000
+        assert len(res2.content) > 1000

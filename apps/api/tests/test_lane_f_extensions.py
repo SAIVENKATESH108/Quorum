@@ -34,7 +34,11 @@ async def test_github_connector_url_parsing():
 @pytest.mark.asyncio
 async def test_document_analyzer_agent_execution():
     """Verify DocumentAnalysisAgent processes codebase payload and produces structured architecture paper."""
-    provider = get_default_provider()
+    from unittest.mock import AsyncMock
+    provider = AsyncMock()
+    provider.complete = AsyncMock(
+        return_value="### 1. Executive Abstract\nFormal architecture synthesis of Quorum codebase."
+    )
     agent = DocumentAnalysisAgent(provider=provider)
     assert agent.role == AgentRole.DOCUMENT_ANALYZER
 

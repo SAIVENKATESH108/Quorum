@@ -27,29 +27,22 @@ export async function GET(
         },
       });
     }
-  } catch (err) {
+  } catch (err: unknown) {
     console.warn(`[PDF Route] Could not reach backend for report ${reportId}:`, err);
-  }
-
-  // Fallback to pre-compiled Quorum System Documentation PDF from public
-  try {
-    const publicPdfPath = path.join(process.cwd(), "public", "Quorum_System_Documentation.pdf");
-    if (fs.existsSync(publicPdfPath)) {
-      const fileBuffer = fs.readFileSync(publicPdfPath);
-      return new NextResponse(fileBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="Quorum_System_Documentation.pdf"`,
-        },
-      });
-    }
-  } catch (fallbackErr) {
-    console.error("[PDF Route] Fallback file read failed:", fallbackErr);
+    return NextResponse.json(
+      {
+        error: "PDF service unavailable",
+        detail: `Could not connect to Quorum backend PDF service: ${(err as Error).message}`,
+      },
+      { status: 503 }
+    );
   }
 
   return NextResponse.json(
-    { error: "PDF compilation not available", detail: "Could not generate or locate PDF for this report." },
+    {
+      error: "Report PDF compilation unavailable",
+      detail: `Could not compile or retrieve publication PDF for report ${reportId}. Please ensure the report exists and has completed synthesis.`,
+    },
     { status: 404 }
   );
 }

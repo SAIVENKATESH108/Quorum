@@ -800,5 +800,16 @@ def compile_research_report_to_pdf(
         ]))
         story.append(t_src)
 
-    doc.build(story, canvasmaker=NumberedCanvas)
+    canvas_cls = make_report_numbered_canvas(report_title, lead_author)
+    doc.build(story, canvasmaker=canvas_cls)
     return pdf_buffer.getvalue()
+
+
+def make_report_numbered_canvas(report_title: str, lead_author: str):
+    class ReportNumberedCanvas(NumberedCanvas):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self.doc_title = f"Quorum Research: {report_title}"[:62]
+            self.doc_author = lead_author[:36]
+            self.doc_confidential = "PEER-REVIEWED RESEARCH SYNTHESIS — Quorum Autonomous Swarm"
+    return ReportNumberedCanvas

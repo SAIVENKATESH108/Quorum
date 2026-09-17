@@ -18,14 +18,16 @@ export const reportKeys = {
 
 export function useReports(projectId?: string) {
   const { toast } = useToast();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
 
   return useQuery<ReportSummaryResponse[], ApiError>({
     queryKey: reportKeys.list(projectId),
     queryFn: async () => {
-      if (!projectId) return [];
       try {
-        return await apiClient.getProjectReports(projectId);
+        if (projectId) {
+          return await apiClient.getProjectReports(projectId);
+        }
+        return await apiClient.getAllReports();
       } catch (err) {
         if (err instanceof ApiError) {
           toast({
@@ -37,13 +39,13 @@ export function useReports(projectId?: string) {
         throw err;
       }
     },
-    enabled: isLoaded && !!isSignedIn && !!projectId,
+    enabled: isLoaded,
   });
 }
 
 export function useReport(reportId: string | null) {
   const { toast } = useToast();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
 
   return useQuery<ReportDetailResponse, ApiError>({
     queryKey: reportKeys.detail(reportId || ""),
@@ -62,7 +64,7 @@ export function useReport(reportId: string | null) {
         throw err;
       }
     },
-    enabled: isLoaded && !!isSignedIn && !!reportId,
+    enabled: isLoaded && !!reportId,
   });
 }
 

@@ -39,9 +39,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const setActiveModal = useUiStore((state) => state.setActiveModal);
   const { data: projects = [], isLoading, isError, refetch } = useProjects();
-  const firstProjectId = projects.length > 0 ? projects[0].id : undefined;
-  const { data: liveReports = [] } = useReports(firstProjectId);
-  const recentReports = liveReports.slice(0, 5);
+  const { data: liveReports = [] } = useReports();
+  const recentReports = liveReports.slice(0, 8);
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between p-4">
