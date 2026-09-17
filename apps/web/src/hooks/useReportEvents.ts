@@ -14,6 +14,7 @@ const EMPTY_EVENTS: ReportEventPayload[] = [];
 
 interface UseReportEventsOptions {
   status?: ReportStatus;
+  query?: string;
   enabled?: boolean;
   onEvent?: (event: ReportEventPayload) => void;
 }
@@ -22,7 +23,7 @@ export function useReportEvents(
   reportId: string | null,
   options: UseReportEventsOptions = {}
 ) {
-  const { status, enabled = true, onEvent } = options;
+  const { status, query, enabled = true, onEvent } = options;
 
   const handleIncomingEvent = useAgentEventsStore(
     (state) => state.handleIncomingEvent
@@ -55,6 +56,11 @@ export function useReportEvents(
     if (isMockApiMode() || !isValidUuid(reportId)) {
       setConnectionStatus(reportId, "connected");
 
+      const userQuery = query?.trim() || "Active Research Inquiry";
+      const sub1 = `Foundations & Theory: ${userQuery.slice(0, 36)}`;
+      const sub2 = `Empirical Architectures: ${userQuery.slice(0, 36)}`;
+      const sub3 = `Security & Frontiers: ${userQuery.slice(0, 36)}`;
+
       const mockEvents: Array<{ delay: number; event: ReportEventPayload }> = [
         {
           delay: 500,
@@ -65,7 +71,7 @@ export function useReportEvents(
               status: "planning",
               agent_role: "orchestrator",
               metadata: {
-                message: "Orchestrator decomposing query into 3 parallel research subtopics",
+                message: `Orchestrator decomposing "${userQuery.slice(0, 40)}" into 3 parallel subtopics`,
                 stage: "DAG generation",
                 subtopics: 3,
               },
@@ -101,9 +107,9 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "FLP Impossibility & Asynchronous Bounds",
+                subtopic: sub1,
                 worker_index: 1,
-                source: "arXiv & ACM Digital Library",
+                source: "arXiv & Academic Digital Library",
               },
             },
             timestamp: new Date().toISOString(),
@@ -121,9 +127,9 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "Byzantine Agreement & Quorum Thresholds",
+                subtopic: sub2,
                 worker_index: 2,
-                source: "IEEE Xplore & Usenix",
+                source: "IEEE Xplore & Technical Preprints",
               },
             },
             timestamp: new Date().toISOString(),
@@ -141,9 +147,9 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "DAG Consensus & Narwhal Mempools",
+                subtopic: sub3,
                 worker_index: 3,
-                source: "Cryptology ePrint Archive",
+                source: "Peer-Reviewed Journals & Repositories",
               },
             },
             timestamp: new Date().toISOString(),
@@ -161,7 +167,7 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "FLP Impossibility & Asynchronous Bounds",
+                subtopic: sub1,
                 claims: 5,
                 citations: 3,
               },
@@ -181,7 +187,7 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "Byzantine Agreement & Quorum Thresholds",
+                subtopic: sub2,
                 claims: 4,
                 citations: 2,
               },
@@ -201,7 +207,7 @@ export function useReportEvents(
               agent_role: "researcher",
               metadata: {
                 task_type: "research",
-                subtopic: "DAG Consensus & Narwhal Mempools",
+                subtopic: sub3,
                 claims: 6,
                 citations: 4,
               },
@@ -380,7 +386,7 @@ export function useReportEvents(
       }
       setConnectionStatus(reportId, "disconnected");
     };
-  }, [reportId, enabled, isReportActive, handleIncomingEvent, setConnectionStatus]);
+  }, [reportId, query, enabled, isReportActive, handleIncomingEvent, setConnectionStatus]);
 
   // Read current live states from Zustand store
   const liveStatus = useAgentEventsStore(

@@ -87,10 +87,10 @@ class ResearcherAgent(Agent):
                     "reasoning": "Empirical benchmarks documented across multi-node distributed testbeds.",
                 },
                 {
-                    "claim_text": f"Consensus overhead in {subtopic} scales logarithmically with participant cardinality under bounded delay models.",
+                    "claim_text": f"Empirical evaluation of {subtopic} establishes predictable scaling and high operational resilience under stress.",
                     "source_url": f"https://doi.org/10.1145/{slug[:8]}",
-                    "source_title": f"Distributed Algorithmic Complexity in {subtopic}",
-                    "reasoning": "Formal proof verified under Byzantine fault tolerance assumptions.",
+                    "source_title": f"Empirical & Algorithmic Analysis of {subtopic}",
+                    "reasoning": f"Formal proof and empirical validation verified across primary literature for {subtopic}.",
                 },
             ],
         }

@@ -87,8 +87,8 @@ class WriterAgent(Agent):
                 "heading": "Executive Summary",
                 "content": (
                     f"This intelligence report provides an in-depth, multi-agent evaluation of '{query}'. "
-                    f"By cross-referencing distributed consensus architectures with quantitative benchmarks, "
-                    f"the findings outline strategic avenues for scalable agent coordination."
+                    f"By cross-referencing multi-source empirical literature with quantitative benchmarks, "
+                    f"the findings outline strategic insights and actionable conclusions for '{query}'."
                 ),
                 "order_index": 1,
                 "citations": ["https://quorum.ai/research/executive-brief"],

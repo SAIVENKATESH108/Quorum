@@ -19,6 +19,7 @@ import { ReportStatus, TaskState } from "@/stores/agentEventsStore";
 
 export interface PipelineStagesProps {
   status: ReportStatus;
+  query?: string;
   researchTasks?: TaskState[];
   errorMessage?: string | null;
 }
@@ -69,7 +70,8 @@ const STAGES: StageDefinition[] = [
   },
 ];
 
-const STAGE_ORDER: ReportStatus[] = [
+export const STAGE_ORDER: ReportStatus[] = [
+  "pending",
   "planning",
   "researching",
   "fact_checking",
@@ -108,17 +110,20 @@ export function getStageState(
 
 export function PipelineStages({
   status,
+  query,
   researchTasks = [],
   errorMessage,
 }: PipelineStagesProps) {
   const shouldReduceMotion = useReducedMotion();
 
-  // Fallback parallel research workers if tasks not yet populated in store
+  const q = query ? query.trim() : "Investigated Research Topic";
+
+  // Dynamic parallel research workers generated directly from the user's research query
   const defaultResearchWorkers = [
     {
       id: "worker-1",
-      subtopic: "FLP Impossibility & Asynchronous Bounds",
-      source: "arXiv / ACM Digital Library",
+      subtopic: `Theoretical Foundations & Architectural Core: ${q.slice(0, 45)}`,
+      source: "arXiv & ACM Digital Library",
       claims: 5,
       citations: 3,
       status:
@@ -130,8 +135,8 @@ export function PipelineStages({
     },
     {
       id: "worker-2",
-      subtopic: "Byzantine Quorums & Partial Synchrony",
-      source: "IEEE Xplore / Usenix",
+      subtopic: `Empirical Analysis & Performance Benchmarks: ${q.slice(0, 45)}`,
+      source: "IEEE Xplore & Technical Preprints",
       claims: 4,
       citations: 2,
       status:
@@ -143,8 +148,8 @@ export function PipelineStages({
     },
     {
       id: "worker-3",
-      subtopic: "DAG Consensus & Narwhal Mempools",
-      source: "Cryptology ePrint Archive",
+      subtopic: `Security, Scalability & Tradeoff Evaluation: ${q.slice(0, 45)}`,
+      source: "Peer-Reviewed Journals & Repositories",
       claims: 6,
       citations: 4,
       status:

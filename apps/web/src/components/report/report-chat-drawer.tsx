@@ -38,10 +38,10 @@ interface ReportChatDrawerProps {
 }
 
 const SUGGESTED_PROMPTS = [
-  "Summarize the core architectural conclusions",
-  "What consensus bounds were formally verified?",
-  "List empirical performance metrics cited",
-  "Explain potential failure modes under Byzantine faults",
+  "Summarize the core findings and conclusions",
+  "What primary empirical evidence was verified?",
+  "List literature sources and citations analyzed",
+  "Detail strategic recommendations and trade-offs",
 ];
 
 export function ReportChatDrawer({

@@ -10,7 +10,11 @@ import { ReportView } from "@/components/report/report-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReportEvents } from "@/hooks/useReportEvents";
 import { reportKeys, useCreateReport, useReport } from "@/hooks/useReports";
-import { ReportDetailResponse, ReportStatus } from "@/lib/api-client";
+import {
+  generateDynamicReportData,
+  ReportDetailResponse,
+  ReportStatus,
+} from "@/lib/api-client";
 import { useAgentEventsStore } from "@/stores/agentEventsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -42,9 +46,10 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
   } = useReport(reportId);
 
   const reportStatus = report?.status;
+  const reportQuery = report?.query;
   const reportEventsOptions = useMemo(
-    () => ({ status: reportStatus }),
-    [reportStatus]
+    () => ({ status: reportStatus, query: reportQuery }),
+    [reportStatus, reportQuery]
   );
 
   // Real-time WebSocket hook: Subscribes to live execution events
@@ -135,6 +140,7 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
   }
 
   // Fallback enriched report data for mock demonstration preview
+  const fallbackData = generateDynamicReportData(reportId, report.query);
   const displayReport: ReportDetailResponse = {
     ...report,
     status: effectiveStatus,
@@ -142,51 +148,11 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
     sections:
       report.sections && report.sections.length > 0
         ? report.sections
-        : [
-            {
-              id: `sec-${reportId}-1`,
-              heading: "1. Executive Summary & Problem Formulation",
-              content: `In distributed systems, autonomous multi-agent consensus requires formal verification across asynchronous communication channels [1]. Investigation into "${report.query}" demonstrates high fault tolerance under Byzantine assumptions without sacrificing liveness [2].`,
-              order_index: 1,
-            },
-            {
-              id: `sec-${reportId}-2`,
-              heading: "2. Empirical Analysis & Parallel Multi-Agent Synthesis",
-              content:
-                "Three parallel researcher agents independently retrieved literature across consensus bounds, Byzantine quorums, and DAG transaction mempools [2]. Cross-validation by the Fact Checker verified claim consistency with 98% confidence across all cited literature [3].",
-              order_index: 2,
-            },
-            {
-              id: `sec-${reportId}-3`,
-              heading: "3. Strategic Recommendations & Architecture",
-              content:
-                "Decoupling transaction dissemination from consensus ordering provides sub-second latency while guaranteeing deterministic state-machine replication [3]. Continued empirical validation under network partition scenarios is strongly recommended [1].",
-              order_index: 3,
-            },
-          ],
+        : fallbackData.sections,
     sources:
       report.sources && report.sources.length > 0
         ? report.sources
-        : [
-            {
-              id: `src-${reportId}-1`,
-              url: "https://dl.acm.org/doi/10.1145/3149.214121",
-              title:
-                "Impossibility of Distributed Consensus with One Faulty Process (Fischer, Lynch, Paterson)",
-            },
-            {
-              id: `src-${reportId}-2`,
-              url: "https://arxiv.org/abs/2201.05677",
-              title:
-                "Bullshark: DAG BFT Protocols with Low Latency & High Throughput",
-            },
-            {
-              id: `src-${reportId}-3`,
-              url: "https://vitalik.eth.limo/general/2021/01/05/rollup.html",
-              title:
-                "An Incomplete Guide to Rollups and Asynchronous State Finality",
-            },
-          ],
+        : fallbackData.sources,
   };
 
   const isComplete = effectiveStatus === "complete";
@@ -207,6 +173,7 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
       <section aria-label="Orchestration Pipeline Visualization">
         <PipelineStages
           status={effectiveStatus}
+          query={report.query}
           researchTasks={researchTasks}
           errorMessage={report.error_message || undefined}
         />
