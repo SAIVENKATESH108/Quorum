@@ -18,7 +18,9 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
   const navLinks = [
     { href: "/projects", label: "Projects" },
     { href: "/reports", label: "Reports" },
+    { href: "/sources", label: "Evidence" },
     { href: "/agents", label: "Agent Mesh" },
+    { href: "/settings", label: "Settings" },
   ];
 
   return (
@@ -92,7 +94,7 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
             </Link>
           </SignedOut>
           <SignedIn>
-            <UserButton afterSignOutUrl="/sign-in" />
+            <UserButton />
           </SignedIn>
         </div>
       </div>

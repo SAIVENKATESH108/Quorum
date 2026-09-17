@@ -1,7 +1,7 @@
 export type { ReportStatus } from "@/stores/agentEventsStore";
 import { ReportStatus } from "@/stores/agentEventsStore";
 
-// --- Types matching Prompt C2 Pydantic Schemas ---
+// --- Types matching Pydantic Schemas ---
 
 export interface ProjectCreate {
   title: string;
@@ -70,110 +70,25 @@ export class ApiError extends Error {
   }
 }
 
-// --- Mode Configuration ---
-
-export function isMockApiMode(): boolean {
-  if (typeof window !== "undefined") {
-    const override = localStorage.getItem("quorum-use-mock-api");
-    if (override !== null) return override === "true";
-  }
-  return process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
+export function isValidUuid(val: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 }
 
-export function setMockApiMode(enabled: boolean): void {
+// --- Mode Configuration ---
+// Mock API mode is disabled to prevent data loss across page refreshes
+export function isMockApiMode(): boolean {
+  return false;
+}
+
+export function setMockApiMode(..._args: unknown[]): void {
+  void _args;
   if (typeof window !== "undefined") {
-    localStorage.setItem("quorum-use-mock-api", enabled ? "true" : "false");
+    localStorage.removeItem("quorum-use-mock-api");
   }
 }
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
-
-// --- Realistic In-Memory Mock Database (for offline / dev / demo) ---
-
-const mockProjects: ProjectResponse[] = [
-  {
-    id: "proj-1",
-    user_id: "user-default",
-    title: "Fault-Tolerant Consensus Mechanisms",
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-  {
-    id: "proj-2",
-    user_id: "user-default",
-    title: "Autonomous Agent Swarms & Coordination",
-    created_at: new Date(Date.now() - 3600000 * 48).toISOString(),
-  },
-  {
-    id: "proj-3",
-    user_id: "user-default",
-    title: "Post-Quantum Cryptographic Protocols",
-    created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
-  },
-];
-
-const mockReports: Record<string, ReportDetailResponse> = {
-  "rep-1": {
-    id: "rep-1",
-    project_id: "proj-1",
-    status: "researching",
-    query: "Fault-Tolerant Consensus in Asynchronous Networks",
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    completed_at: null,
-    sections: [
-      {
-        id: "sec-1",
-        heading: "1. Executive Summary & Problem Formulation",
-        content:
-          "In asynchronous distributed systems, consensus cannot be guaranteed in the presence of unannounced fail-stop faults without partial synchrony assumptions or randomized consensus protocols (FLP Impossibility Result).",
-        order_index: 1,
-      },
-      {
-        id: "sec-2",
-        heading: "2. Byzantine Fault Tolerance Bounds",
-        content:
-          "Standard BFT protocols require 3f + 1 replicas to tolerate f Byzantine participants. Recent advances in DAG-based consensus (e.g., Bullshark, Narwhal) decouple transaction dissemination from ordering.",
-        order_index: 2,
-      },
-    ],
-    sources: [
-      {
-        id: "src-1",
-        url: "https://dl.acm.org/doi/10.1145/3149.214121",
-        title: "Impossibility of Distributed Consensus with One Faulty Process (Fischer, Lynch, Paterson)",
-      },
-      {
-        id: "src-2",
-        url: "https://arxiv.org/abs/2201.05677",
-        title: "Bullshark: DAG BFT Protocols with Low Latency",
-      },
-    ],
-  },
-  "rep-2": {
-    id: "rep-2",
-    project_id: "proj-1",
-    status: "complete",
-    query: "Optimistic Rollups vs ZK Rollups Performance Benchmark",
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    completed_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-    sections: [
-      {
-        id: "sec-3",
-        heading: "1. Comparative Proof Generation Latency",
-        content:
-          "ZK-SNARK proofs provide cryptographic finality in under 2 minutes using GPU provers, while Optimistic Rollups rely on a 7-day fraud-proof dispute window for trustless withdrawals.",
-        order_index: 1,
-      },
-    ],
-    sources: [
-      {
-        id: "src-3",
-        url: "https://vitalik.eth.limo/general/2021/01/05/rollup.html",
-        title: "An Incomplete Guide to Rollups (Vitalik Buterin)",
-      },
-    ],
-  },
-};
 
 // --- Auth Token Retrieval Helper ---
 
@@ -195,15 +110,17 @@ export async function getAuthToken(): Promise<string | null> {
   }
 
   if (typeof window !== "undefined") {
-    // 1. Try Clerk session token if available
+    // 1. Try Clerk session token if available on window
     try {
-      const clerk = (
-        window as unknown as {
-          Clerk?: { session?: { getToken: () => Promise<string | null> } };
-        }
-      ).Clerk;
-      if (clerk?.session) {
-        const clerkToken = await clerk.session.getToken();
+      const win = window as unknown as {
+        Clerk?: {
+          loaded?: boolean;
+          load?: () => Promise<void>;
+          session?: { getToken: () => Promise<string | null> };
+        };
+      };
+      if (win.Clerk?.session) {
+        const clerkToken = await win.Clerk.session.getToken();
         if (clerkToken) return clerkToken;
       }
     } catch {
@@ -215,7 +132,7 @@ export async function getAuthToken(): Promise<string | null> {
     if (localToken) return localToken;
   }
 
-  return "mock_token";
+  return null;
 }
 
 // --- HTTP Fetch Helper with Error Serialization ---
@@ -258,136 +175,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   } catch (err: unknown) {
     if (err instanceof ApiError) throw err;
 
-    // If backend connection fails (e.g. backend down during early UI development), fall through to mock
-    if (
-      err instanceof TypeError &&
-      (err.message.includes("fetch") || err.message.includes("Failed to fetch"))
-    ) {
-      console.warn(`[API Client] Connection to ${url} unreachable. Falling back to local mock API.`);
-      return handleMockFallback<T>(path, options);
-    }
-
-    throw new ApiError(500, "network_error", (err as Error).message || "Network request failed");
+    throw new ApiError(
+      503,
+      "network_error",
+      (err as Error).message || "Network request failed. Please ensure the backend is running."
+    );
   }
-}
-
-// --- Mock Fallback Handler ---
-
-function handleMockFallback<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const method = (options.method || "GET").toUpperCase();
-
-  // POST /api/projects
-  if (path === "/api/projects" && method === "POST") {
-    const body: ProjectCreate = JSON.parse((options.body as string) || "{}");
-    const newProj: ProjectResponse = {
-      id: `proj-${Date.now()}`,
-      user_id: "user-default",
-      title: body.title || "Untitled Project",
-      created_at: new Date().toISOString(),
-    };
-    mockProjects.unshift(newProj);
-    return Promise.resolve(newProj as T);
-  }
-
-  // GET /api/projects
-  if (path === "/api/projects" && method === "GET") {
-    return Promise.resolve([...mockProjects] as T);
-  }
-
-  // POST /api/projects/{id}/reports
-  const projectReportsMatch = path.match(/^\/api\/projects\/([^/]+)\/reports$/);
-  if (projectReportsMatch) {
-    const projectId = projectReportsMatch[1];
-    if (method === "POST") {
-      const body: ReportCreate = JSON.parse((options.body as string) || "{}");
-      const reportId = `rep-${Date.now()}`;
-      const newReport: ReportDetailResponse = {
-        id: reportId,
-        project_id: projectId,
-        status: "pending",
-        query: body.query || "Autonomous Multi-Agent Investigation",
-        created_at: new Date().toISOString(),
-        completed_at: null,
-        sections: [
-          {
-            id: `sec-${reportId}-1`,
-            heading: "1. Executive Summary & Problem Formulation",
-            content:
-              "In asynchronous distributed systems, consensus cannot be guaranteed in the presence of unannounced fail-stop faults without partial synchrony assumptions or randomized consensus protocols [1]. Investigating fault tolerance bounds demonstrates how quorum intersections resolve safety conditions without sacrificing liveness [2].",
-            order_index: 1,
-          },
-          {
-            id: `sec-${reportId}-2`,
-            heading: "2. Empirical Analysis & Parallel Multi-Agent Synthesis",
-            content:
-              "Three parallel researcher agents independently retrieved literature across consensus bounds, Byzantine quorums, and DAG transaction mempools [2]. Cross-validation by the Fact Checker verified claim consistency with 98% confidence across all cited literature [3].",
-            order_index: 2,
-          },
-          {
-            id: `sec-${reportId}-3`,
-            heading: "3. Strategic Recommendations & Architecture",
-            content:
-              "Decoupling transaction dissemination from consensus ordering provides sub-second latency while guaranteeing deterministic state-machine replication [3]. Continued empirical validation under network partition scenarios is strongly recommended [1].",
-            order_index: 3,
-          },
-        ],
-        sources: [
-          {
-            id: `src-${reportId}-1`,
-            url: "https://dl.acm.org/doi/10.1145/3149.214121",
-            title: "Impossibility of Distributed Consensus with One Faulty Process (Fischer, Lynch, Paterson)",
-          },
-          {
-            id: `src-${reportId}-2`,
-            url: "https://arxiv.org/abs/2201.05677",
-            title: "Bullshark: DAG BFT Protocols with Low Latency & High Throughput",
-          },
-          {
-            id: `src-${reportId}-3`,
-            url: "https://vitalik.eth.limo/general/2021/01/05/rollup.html",
-            title: "An Incomplete Guide to Rollups and Asynchronous State Finality",
-          },
-        ],
-      };
-      mockReports[reportId] = newReport;
-
-      const responsePayload: ReportCreateResponse = {
-        id: reportId,
-        report_id: reportId,
-        status: "pending",
-        query: newReport.query,
-        created_at: newReport.created_at,
-      };
-      return Promise.resolve(responsePayload as T);
-    }
-
-    if (method === "GET") {
-      const filtered = Object.values(mockReports).filter(
-        (r) => r.project_id === projectId
-      );
-      return Promise.resolve(filtered as T);
-    }
-  }
-
-  // GET /api/reports/{id}
-  const reportDetailMatch = path.match(/^\/api\/reports\/([^/]+)$/);
-  if (reportDetailMatch) {
-    const reportId = reportDetailMatch[1];
-    if (method === "GET") {
-      const rep = mockReports[reportId];
-      if (!rep) {
-        throw new ApiError(404, "not_found", `Report ${reportId} not found`);
-      }
-      return Promise.resolve(rep as T);
-    }
-
-    if (method === "DELETE") {
-      delete mockReports[reportId];
-      return Promise.resolve({} as T);
-    }
-  }
-
-  throw new ApiError(404, "not_found", `Mock path ${method} ${path} not found`);
 }
 
 // --- Exported API Client Methods ---
@@ -395,16 +188,10 @@ function handleMockFallback<T>(path: string, options: RequestInit = {}): Promise
 export const apiClient = {
   // Projects
   async getProjects(): Promise<ProjectResponse[]> {
-    if (isMockApiMode()) return handleMockFallback<ProjectResponse[]>("/api/projects", { method: "GET" });
     return request<ProjectResponse[]>("/api/projects");
   },
 
   async createProject(data: ProjectCreate): Promise<ProjectResponse> {
-    if (isMockApiMode())
-      return handleMockFallback<ProjectResponse>("/api/projects", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
     return request<ProjectResponse>("/api/projects", {
       method: "POST",
       body: JSON.stringify(data),
@@ -414,17 +201,11 @@ export const apiClient = {
   // Project Reports
   async getProjectReports(projectId: string): Promise<ReportSummaryResponse[]> {
     const path = `/api/projects/${projectId}/reports`;
-    if (isMockApiMode()) return handleMockFallback<ReportSummaryResponse[]>(path, { method: "GET" });
     return request<ReportSummaryResponse[]>(path);
   },
 
   async createReport(projectId: string, data: ReportCreate): Promise<ReportCreateResponse> {
     const path = `/api/projects/${projectId}/reports`;
-    if (isMockApiMode())
-      return handleMockFallback<ReportCreateResponse>(path, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
     return request<ReportCreateResponse>(path, {
       method: "POST",
       body: JSON.stringify(data),
@@ -434,20 +215,44 @@ export const apiClient = {
   // Reports
   async getReport(reportId: string): Promise<ReportDetailResponse> {
     const path = `/api/reports/${reportId}`;
-    if (isMockApiMode()) return handleMockFallback<ReportDetailResponse>(path, { method: "GET" });
     return request<ReportDetailResponse>(path);
   },
 
   async deleteReport(reportId: string): Promise<void> {
     const path = `/api/reports/${reportId}`;
-    if (isMockApiMode()) return handleMockFallback<void>(path, { method: "DELETE" });
     return request<void>(path, { method: "DELETE" });
   },
 
-  completeMockReport(reportId: string): void {
-    if (mockReports[reportId]) {
-      mockReports[reportId].status = "complete";
-      mockReports[reportId].completed_at = new Date().toISOString();
-    }
+  // Generic helper
+  async get<T>(path: string): Promise<T> {
+    return request<T>(path);
+  },
+
+  // Chat & Evidence
+  async chatWithReport(
+    reportId: string,
+    message: string
+  ): Promise<{ reply: string; citations: { index: number; title: string; url: string }[] }> {
+    const path = `/api/reports/${reportId}/chat`;
+    return request(path, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  async getSources(params?: { q?: string; category?: string }): Promise<any[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.q) searchParams.set("q", params.q);
+    if (params?.category) searchParams.set("category", params.category);
+    const qs = searchParams.toString();
+    const path = `/api/sources${qs ? `?${qs}` : ""}`;
+    return request<any[]>(path);
+  },
+
+  completeMockReport(..._args: unknown[]): void {
+    void _args;
+    // No-op for real live mode
   },
 };
+
+

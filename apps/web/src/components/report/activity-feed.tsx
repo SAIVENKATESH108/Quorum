@@ -246,7 +246,7 @@ export function ActivityFeed({
       <CardContent className="p-0">
         {/* Scrollable Container with max height so it does not break page layout */}
         <div
-          className="max-h-72 overflow-y-auto divide-y divide-border/40 px-4 py-2"
+          className="max-h-72 overflow-y-auto no-scrollbar divide-y divide-border/40 px-4 py-2"
           tabIndex={0}
           aria-label="Activity event feed"
         >

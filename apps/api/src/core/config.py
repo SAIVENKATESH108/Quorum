@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     ANTHROPIC_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    OPENROUTER_API_KEY: Optional[str] = None
     NEURAL_PULSE_API_KEY: Optional[str] = None
     CLERK_SECRET_KEY: Optional[str] = None
     CLERK_JWKS_URL: Optional[str] = None
@@ -20,7 +22,12 @@ class Settings(BaseSettings):
     CLERK_PEM_PUBLIC_KEY: Optional[str] = None
 
     # CORS origins
-    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ]
 
     # Rate limiting: report creations per user per hour
     REPORT_RATE_LIMIT_PER_HOUR: int = 10
@@ -32,7 +39,7 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",") if i.strip()]
         elif isinstance(v, (list, str)):
             return v
-        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"]
 
     model_config = SettingsConfigDict(
         env_file=".env",

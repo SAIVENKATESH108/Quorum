@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import {
   apiClient,
   ApiError,
@@ -14,6 +15,7 @@ export const projectKeys = {
 
 export function useProjects() {
   const { toast } = useToast();
+  const { isLoaded, isSignedIn } = useAuth();
 
   return useQuery<ProjectResponse[], ApiError>({
     queryKey: projectKeys.all,
@@ -31,6 +33,8 @@ export function useProjects() {
         throw err;
       }
     },
+    // Prevent fetching before Clerk is initialized to avoid unauthenticated/mock token queries
+    enabled: isLoaded && !!isSignedIn,
   });
 }
 

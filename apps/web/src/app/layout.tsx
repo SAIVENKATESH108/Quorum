@@ -43,6 +43,7 @@ export const viewport: Viewport = {
 };
 
 import { ClerkProvider } from "@clerk/nextjs";
+import { AuthSync } from "@/components/auth-sync";
 
 export default function RootLayout({
   children,
@@ -56,6 +57,7 @@ export default function RootLayout({
         "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ"
       }
     >
+      <AuthSync />
       <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-bg text-text-primary antialiased selection:bg-accent/20 selection:text-accent`}

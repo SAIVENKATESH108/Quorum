@@ -220,14 +220,9 @@ class OrchestrationEngine:
                 return False
 
             # --- Synchronize Overall Report Stage ---
-            # Derive current user-facing milestone (Researching, Fact-checking, Writing)
-            # based on the dominant agent roles in the active wavefront.
             await self._sync_pipeline_stage(report_id, ready_nodes)
 
             # --- Parallel Wavefront Execution ---
-            # Launch all ready nodes concurrently as asynchronous tasks.
-            # When ready_nodes contains multiple research subtopics, they execute in parallel,
-            # leveraging Python's asyncio event loop to maximize I/O concurrency against LLM APIs.
             logger.info(
                 f"[ENGINE] Launching {len(ready_nodes)} concurrent tasks: {[n.id for n in ready_nodes]}"
             )
@@ -349,7 +344,7 @@ class OrchestrationEngine:
         )
 
         try:
-            raw_result = await enqueue_agent_task(command, max_retries=3)
+            raw_result = await enqueue_agent_task(command, max_retries=3, provider=self.provider)
             result = AgentResult(
                 success=raw_result.get("success", True),
                 output=raw_result.get("output", {}),

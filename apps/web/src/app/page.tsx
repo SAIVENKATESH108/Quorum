@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -25,15 +25,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/toast";
 import { useProjects } from "@/hooks/useProjects";
 import { useReportEvents } from "@/hooks/useReportEvents";
 import { useReports } from "@/hooks/useReports";
-import { isMockApiMode, setMockApiMode } from "@/lib/api-client";
 import { useUiStore } from "@/stores/uiStore";
 
 export default function HomePage() {
-  const { toast } = useToast();
   const setActiveModal = useUiStore((state) => state.setActiveModal);
   const selectedReportId = useUiStore((state) => state.selectedReportId);
   const setSelectedReportId = useUiStore((state) => state.setSelectedReportId);
@@ -58,26 +55,17 @@ export default function HomePage() {
   // Default to selected report id or first available report
   const activeReportId = selectedReportId || (reports.length > 0 ? reports[0].id : null);
   const activeReport = reports.find((r) => r.id === activeReportId) || reports[0];
+  const activeReportStatus = activeReport?.status;
+  const reportEventsOptions = useMemo(
+    () => ({ status: activeReportStatus }),
+    [activeReportStatus]
+  );
 
   // Real-time WebSocket hook for active report
   const { status: liveStatus, connectionState, events: liveEvents } = useReportEvents(
     activeReportId,
-    { status: activeReport?.status }
+    reportEventsOptions
   );
-
-  const [isMockMode, setIsMockModeState] = useState(() => isMockApiMode());
-
-  const toggleMockMode = () => {
-    const next = !isMockMode;
-    setMockApiMode(next);
-    setIsMockModeState(next);
-    toast({
-      title: next ? "Switched to Mock API Mode" : "Switched to Live API Mode",
-      description: next
-        ? "API client using local deterministic mock data."
-        : "API client targeting backend at NEXT_PUBLIC_API_URL.",
-    });
-  };
 
   return (
     <AppShell>
@@ -91,14 +79,10 @@ export default function HomePage() {
                 Multi-Agent Platform
               </span>
               <span className="text-xs text-text-secondary">•</span>
-              <button
-                type="button"
-                onClick={toggleMockMode}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-                title="Toggle between Mock API and Live Backend API"
-              >
-                <span>API: {isMockMode ? "Mock Mode" : "Live Backend"}</span>
-              </button>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-subtle px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                Live Backend Connected
+              </span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
               Research Operations
@@ -179,17 +163,25 @@ export default function HomePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                Sources Indexed
+                Reports Generated
               </CardTitle>
               <FileCheck className="h-4 w-4 text-accent" aria-hidden="true" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-text-primary">1,428</div>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
-                <Badge variant="complete" dot>
-                  pgvector ready
-                </Badge>
-              </div>
+              {isReportsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-text-primary">
+                    {reports.length}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
+                    <Badge variant="complete" dot>
+                      pgvector ready
+                    </Badge>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

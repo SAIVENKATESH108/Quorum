@@ -56,7 +56,7 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     except ValueError:
         pass
 
-    # Handle test / mock token prefixes
+    # Handle test / mock token prefixes - isolated to dedicated dev user
     if token.startswith("test_") or token == "mock_token":
         close_session = False
         session = db
@@ -65,9 +65,19 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
             close_session = True
 
         try:
-            stmt = select(User).order_by(User.created_at.asc())
+            stmt = select(User).where(User.email == "dev@quorum.local")
             res = await session.execute(stmt)
-            return res.scalars().first()
+            dev_user = res.scalars().first()
+            if not dev_user:
+                dev_user = User(
+                    id=uuid.uuid5(uuid.NAMESPACE_DNS, "dev@quorum.local"),
+                    email="dev@quorum.local",
+                    name="Local Developer",
+                )
+                session.add(dev_user)
+                await session.commit()
+                await session.refresh(dev_user)
+            return dev_user
         finally:
             if close_session:
                 await session.close()

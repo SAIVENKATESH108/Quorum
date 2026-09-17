@@ -264,7 +264,7 @@ class ReportSection(Base):
         nullable=False,
         index=True,
     )
-    heading: Mapped[str] = mapped_column(String(255), nullable=False)
+    heading: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False)
 

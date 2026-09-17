@@ -20,6 +20,13 @@ from src.db.models import (
 )
 from src.db.session import async_session_maker
 from src.workers.main import process_agent_task
+from src.agents.providers import AIProvider
+
+
+class StubProvider(AIProvider):
+    name = "Stub"
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
+        return '{"subtopics": [{"title": "Subtopic A"}], "claims": [{"claim_text": "Sample claim", "source_url": "https://example.com"}]}'
 
 
 async def create_test_report_hierarchy() -> tuple[User, Project, Report]:
@@ -102,7 +109,7 @@ async def test_worker_processes_task_and_publishes_event():
             },
         )
 
-        result = await process_agent_task(ctx=None, command_data=command.to_dict())
+        result = await process_agent_task(ctx=None, command_data=command.to_dict(), provider=StubProvider())
         assert result.get("success") is True
 
         # 4. Wait for event listener to capture events
@@ -188,8 +195,8 @@ async def test_websocket_endpoint_authorization_and_streaming():
 
         async def send_periodic_events():
             # Publish periodically so that message is received once websocket subscription is active
-            await asyncio.sleep(0.3)
-            for _ in range(15):
+            await asyncio.sleep(0.5)
+            for _ in range(60):
                 if auth_ws.sent_messages:
                     break
                 await publish_event(
@@ -200,7 +207,7 @@ async def test_websocket_endpoint_authorization_and_streaming():
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                 )
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.25)
 
         event_task = asyncio.create_task(send_periodic_events())
         try:

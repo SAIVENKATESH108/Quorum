@@ -259,6 +259,108 @@ class OpenAIProvider(AIProvider):
             return data["choices"][0]["message"]["content"]
 
 
+class OpenRouterProvider(AIProvider):
+    """
+    OpenRouter API provider - aggregates 100+ free and paid LLM models.
+    Uses OpenAI-compatible chat completions endpoint.
+    Default model: nvidia/nemotron-3-ultra-550b-a55b:free (free tier, 1M context).
+    """
+
+    name = "OpenRouter"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "nvidia/nemotron-3-ultra-550b-a55b:free",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.api_key = api_key or settings.OPENROUTER_API_KEY or ""
+        self.model = model
+
+    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+        if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
+            return f"[OpenRouter Mock Response - {self.model}]\nResearch Analysis:\n{prompt[:300]}..."
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://quorum.ai",
+                "X-Title": "Quorum Research Platform",
+            }
+            body = {
+                "model": self.model,
+                "messages": messages,
+            }
+            res = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=body,
+            )
+            res.raise_for_status()
+            data = res.json()
+            return data["choices"][0]["message"]["content"]
+
+
+class GeminiProvider(AIProvider):
+    """
+    Google Gemini API provider via REST (google-generativeai compatible endpoint).
+    Uses the Gemini 1.5 Flash model by default — fast, capable, and generous free tier.
+    """
+
+    name = "Gemini"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "gemini-1.5-flash",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.api_key = api_key or settings.GEMINI_API_KEY or ""
+        self.model = model
+
+    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+        if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
+            return f"[Gemini Mock Response - {self.model}]\nResearch Analysis:\n{prompt[:300]}..."
+
+        # Build contents list (Gemini uses 'contents' not 'messages')
+        contents = []
+        if system:
+            # Gemini 1.5 supports system_instruction via the dedicated field
+            pass  # handled below
+        contents.append({"role": "user", "parts": [{"text": prompt}]})
+
+        body: dict = {
+            "contents": contents,
+            "generationConfig": {
+                "maxOutputTokens": 8192,
+                "temperature": 0.7,
+            },
+        }
+        if system:
+            body["systemInstruction"] = {"parts": [{"text": system}]}
+
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}"
+            f":generateContent?key={self.api_key}"
+        )
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            res = await client.post(url, json=body)
+            res.raise_for_status()
+            data = res.json()
+            try:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError) as exc:
+                raise ValueError(f"Unexpected Gemini response format: {data}") from exc
+
+
 class NeuralPulseProvider(AIProvider):
     """
     Evorozen Neural Pulse API provider.
@@ -340,11 +442,13 @@ class ProviderFallbackChain(AIProvider):
 
 
 def get_default_provider() -> AIProvider:
-    """Instantiate standard provider fallback chain based on configuration."""
-    from src.agents.providers import AnthropicProvider, NeuralPulseProvider, OpenAIProvider
-
+    """
+    Instantiate provider fallback chain.
+    Priority: OpenRouter (free NVIDIA models) → Gemini → OpenAI → NeuralPulse.
+    """
     providers: List[AIProvider] = [
-        AnthropicProvider(),
+        OpenRouterProvider(),
+        GeminiProvider(),
         OpenAIProvider(),
         NeuralPulseProvider(),
     ]

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import {
   apiClient,
   ApiError,
@@ -17,6 +18,7 @@ export const reportKeys = {
 
 export function useReports(projectId?: string) {
   const { toast } = useToast();
+  const { isLoaded, isSignedIn } = useAuth();
 
   return useQuery<ReportSummaryResponse[], ApiError>({
     queryKey: reportKeys.list(projectId),
@@ -35,12 +37,13 @@ export function useReports(projectId?: string) {
         throw err;
       }
     },
-    enabled: !!projectId,
+    enabled: isLoaded && !!isSignedIn && !!projectId,
   });
 }
 
 export function useReport(reportId: string | null) {
   const { toast } = useToast();
+  const { isLoaded, isSignedIn } = useAuth();
 
   return useQuery<ReportDetailResponse, ApiError>({
     queryKey: reportKeys.detail(reportId || ""),
@@ -59,7 +62,7 @@ export function useReport(reportId: string | null) {
         throw err;
       }
     },
-    enabled: !!reportId,
+    enabled: isLoaded && !!isSignedIn && !!reportId,
   });
 }
 

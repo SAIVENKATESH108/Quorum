@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { apiClient, getAuthToken, isMockApiMode } from "@/lib/api-client";
+import { apiClient, getAuthToken, isMockApiMode, isValidUuid } from "@/lib/api-client";
 import {
   ConnectionState,
   ReportEventPayload,
@@ -10,6 +10,7 @@ import {
 } from "@/stores/agentEventsStore";
 
 const TERMINAL_STATUSES: ReportStatus[] = ["complete", "failed"];
+const EMPTY_EVENTS: ReportEventPayload[] = [];
 
 interface UseReportEventsOptions {
   status?: ReportStatus;
@@ -34,6 +35,8 @@ export function useReportEvents(
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
   const isManuallyClosedRef = useRef(false);
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
 
   // Check if report is actively in-progress
   const isReportActive = reportId && (!status || !TERMINAL_STATUSES.includes(status));
@@ -49,7 +52,7 @@ export function useReportEvents(
     isManuallyClosedRef.current = false;
 
     // --- Simulated Mock Stream for local preview / mock mode ---
-    if (isMockApiMode()) {
+    if (isMockApiMode() || !isValidUuid(reportId)) {
       setConnectionStatus(reportId, "connected");
 
       const mockEvents: Array<{ delay: number; event: ReportEventPayload }> = [
@@ -263,7 +266,7 @@ export function useReportEvents(
         const t = setTimeout(() => {
           if (!isManuallyClosedRef.current) {
             handleIncomingEvent(reportId, event);
-            onEvent?.(event);
+            onEventRef.current?.(event);
             if (event.data.status === "complete") {
               apiClient.completeMockReport(reportId);
               setConnectionStatus(reportId, "disconnected");
@@ -308,7 +311,7 @@ export function useReportEvents(
           try {
             const parsed: ReportEventPayload = JSON.parse(event.data);
             handleIncomingEvent(reportId, parsed);
-            onEvent?.(parsed);
+            onEventRef.current?.(parsed);
 
             // Clean up connection on terminal status
             const currentStatus = parsed.data?.status;
@@ -377,7 +380,7 @@ export function useReportEvents(
       }
       setConnectionStatus(reportId, "disconnected");
     };
-  }, [reportId, enabled, isReportActive, handleIncomingEvent, setConnectionStatus, onEvent]);
+  }, [reportId, enabled, isReportActive, handleIncomingEvent, setConnectionStatus]);
 
   // Read current live states from Zustand store
   const liveStatus = useAgentEventsStore(
@@ -388,7 +391,10 @@ export function useReportEvents(
       reportId ? state.connectionStatuses[reportId] || "disconnected" : "disconnected"
   );
   const liveEvents = useAgentEventsStore(
-    (state) => (reportId ? state.eventsLog[reportId] || [] : [])
+    (state) =>
+      reportId && state.eventsLog[reportId]
+        ? state.eventsLog[reportId]
+        : EMPTY_EVENTS
   );
 
   return {

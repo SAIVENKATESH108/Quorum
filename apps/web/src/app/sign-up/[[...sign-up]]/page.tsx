@@ -39,7 +39,7 @@ export default function SignUpPage() {
             path="/sign-up"
             routing="path"
             signInUrl="/sign-in"
-            redirectUrl="/"
+            fallbackRedirectUrl="/"
             appearance={{
               variables: {
                 colorPrimary: "#6366f1",

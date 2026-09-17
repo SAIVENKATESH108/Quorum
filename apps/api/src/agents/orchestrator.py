@@ -125,19 +125,19 @@ class OrchestratorAgent(Agent):
     def _default_subtopics(self, query: str) -> List[Dict[str, str]]:
         return [
             {
-                "title": f"Core Foundations and Architecture of {query}",
-                "description": "Historical development, fundamental principles, and structural paradigms.",
+                "title": "Core Foundations & Architecture",
+                "description": f"Historical development, fundamental principles, and structural paradigms related to: {query[:200]}",
             },
             {
-                "title": f"Empirical Performance, Benchmarks, and Case Studies for {query}",
-                "description": "Quantitative analysis, real-world deployments, and comparative metrics.",
+                "title": "Empirical Performance & Benchmarks",
+                "description": f"Quantitative analysis, real-world deployments, and comparative metrics for: {query[:200]}",
             },
             {
-                "title": f"Security, Scalability, and Risk Considerations in {query}",
-                "description": "Vulnerability surfaces, failure modes, consensus overhead, and governance.",
+                "title": "Security, Scalability & Risk",
+                "description": f"Vulnerability surfaces, failure modes, consensus overhead, and governance in: {query[:200]}",
             },
             {
-                "title": f"Future Outlook and Next-Generation Frontiers for {query}",
-                "description": "Emerging trends, integration with adjacent systems, and strategic projections.",
+                "title": "Future Outlook & Next Frontiers",
+                "description": f"Emerging trends, integration with adjacent systems, and strategic projections for: {query[:200]}",
             },
         ]

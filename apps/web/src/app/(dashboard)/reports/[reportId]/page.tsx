@@ -41,14 +41,18 @@ export default function ReportDetailPage({ params }: ReportDetailPageProps) {
     refetch,
   } = useReport(reportId);
 
+  const reportStatus = report?.status;
+  const reportEventsOptions = useMemo(
+    () => ({ status: reportStatus }),
+    [reportStatus]
+  );
+
   // Real-time WebSocket hook: Subscribes to live execution events
   const {
     status: liveStatus,
     connectionState,
     events,
-  } = useReportEvents(reportId, {
-    status: report?.status,
-  });
+  } = useReportEvents(reportId, reportEventsOptions);
 
   // Effective status considers live WebSocket stream first, then server data
   const effectiveStatus: ReportStatus =

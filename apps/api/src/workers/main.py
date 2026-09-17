@@ -29,16 +29,13 @@ logger = logging.getLogger(__name__)
 
 
 # Default provider fallback chain for worker jobs
+# Uses OpenRouter (free tier) → Gemini → OpenAI
 def get_default_provider() -> ProviderFallbackChain:
-    return ProviderFallbackChain(
-        providers=[
-            AnthropicProvider(),
-            OpenAIProvider(),
-        ]
-    )
+    from src.agents.providers import get_default_provider as _get
+    return _get()
 
 
-async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[str, Any]) -> Dict[str, Any]:
+async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[str, Any], provider: Optional[Any] = None) -> Dict[str, Any]:
     """
     Job queue task processing an AgentTaskCommand:
     1. Deserializes the AgentTaskCommand
@@ -107,7 +104,8 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
     )
 
     # Instantiate Agent and execute command
-    provider = get_default_provider()
+    if provider is None:
+        provider = get_default_provider()
     agent = AgentFactory.create(agent_role, provider)
 
     result: AgentResult
@@ -144,10 +142,12 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
         if result.success and agent_role == AgentRole.WRITER:
             sections = result.output.get("sections", [])
             for sec in sections:
+                # Truncate heading to 250 chars to avoid VARCHAR overflow
+                heading = str(sec.get("heading", "Section"))[:250]
                 section_model = ReportSection(
                     id=uuid.uuid4(),
                     report_id=report_id,
-                    heading=sec.get("heading", "Section"),
+                    heading=heading,
                     content=sec.get("content", ""),
                     order_index=sec.get("order_index", 1),
                 )

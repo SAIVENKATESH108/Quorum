@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  BookOpen,
   Clock,
   FileText,
   Folder,
@@ -18,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/useProjects";
+import { useReports } from "@/hooks/useReports";
 import { useUiStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 
@@ -26,32 +28,20 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "running" {
+  if (status === "complete") return "complete";
+  if (status === "failed") return "failed";
+  if (status === "pending") return "pending";
+  return "running";
+}
+
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const setActiveModal = useUiStore((state) => state.setActiveModal);
   const { data: projects = [], isLoading, isError, refetch } = useProjects();
-
-  // Demo recent reports with live status badges
-  const recentReports = [
-    {
-      id: "rep-1",
-      query: "Asynchronous BFT Consensus Bounds",
-      status: "running" as const,
-      timestamp: "12m ago",
-    },
-    {
-      id: "rep-2",
-      query: "Multi-Agent Supply Chain Optimization",
-      status: "complete" as const,
-      timestamp: "1h ago",
-    },
-    {
-      id: "rep-3",
-      query: "Post-Quantum Lattice Signatures",
-      status: "pending" as const,
-      timestamp: "2h ago",
-    },
-  ];
+  const firstProjectId = projects.length > 0 ? projects[0].id : undefined;
+  const { data: liveReports = [] } = useReports(firstProjectId);
+  const recentReports = liveReports.slice(0, 5);
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between p-4">
@@ -106,7 +96,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             ) : (
               projects.map((proj) => {
-                const active = pathname.includes(`/projects/${proj.id}`);
+                const active = pathname === `/projects/${proj.id}`;
                 return (
                   <Link
                     key={proj.id}
@@ -137,30 +127,56 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           <nav aria-label="Live reports list" className="space-y-1">
-            {recentReports.map((rep) => (
-              <Link
-                key={rep.id}
-                href={`/reports/${rep.id}`}
-                onClick={() => onClose()}
-                className="group flex flex-col gap-1 rounded-control p-2 text-xs transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="truncate font-medium text-text-primary group-hover:text-accent">
-                    {rep.query}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-text-secondary">
-                  <Badge variant={rep.status} dot>
-                    {rep.status}
-                  </Badge>
-                  <span className="flex items-center gap-1 opacity-75">
-                    <Clock className="h-3 w-3" aria-hidden="true" />
-                    {rep.timestamp}
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {recentReports.length === 0 ? (
+              <div className="px-2 py-2 text-xs text-text-secondary">
+                No reports generated yet.
+              </div>
+            ) : (
+              recentReports.map((rep) => (
+                <Link
+                  key={rep.id}
+                  href={`/reports/${rep.id}`}
+                  onClick={() => onClose()}
+                  className="group flex flex-col gap-1 rounded-control p-2 text-xs transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate font-medium text-text-primary group-hover:text-accent">
+                      {rep.query}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-text-secondary">
+                    <Badge variant={getBadgeVariant(rep.status)} dot>
+                      {rep.status}
+                    </Badge>
+                    <span className="flex items-center gap-1 opacity-75">
+                      <Clock className="h-3 w-3" aria-hidden="true" />
+                      {new Date(rep.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                </Link>
+              ))
+            )}
           </nav>
+        </div>
+
+        {/* Global Navigation Section */}
+        <div className="space-y-1.5 pt-2 border-t border-border/60">
+          <Link
+            href="/sources"
+            onClick={() => onClose()}
+            className={cn(
+              "flex items-center gap-2 rounded-control px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              pathname === "/sources"
+                ? "bg-surface-hover font-semibold text-text-primary"
+                : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+            )}
+          >
+            <BookOpen className="h-4 w-4 text-accent" aria-hidden="true" />
+            <span>Evidence &amp; Sources</span>
+          </Link>
         </div>
       </div>
 
@@ -195,10 +211,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop Sidebar (visible >= 768px md breakpoint) */}
+      {/* Desktop Sidebar (visible >= 768px md breakpoint) - Fixed in place */}
       <aside
         aria-label="Desktop Project Sidebar"
-        className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-surface h-[calc(100vh-3.5rem)] sticky top-14 overflow-y-auto"
+        className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-surface h-full overflow-y-auto no-scrollbar select-none z-20"
       >
         {sidebarContent}
       </aside>
@@ -245,7 +261,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
 
               {/* Mobile Drawer Content */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto no-scrollbar">
                 {sidebarContent}
               </div>
             </motion.div>

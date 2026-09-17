@@ -50,8 +50,11 @@ class WriterAgent(Agent):
         return AgentResult(
             success=True,
             output={
-                "title": data.get("title", f"Report: {query}"),
-                "sections": data.get("sections", []),
+                "title": data.get("title", f"Report: {query}")[:500],
+                "sections": [
+                    {**s, "heading": s.get("heading", "")[:250]}
+                    for s in data.get("sections", [])
+                ],
             },
             metadata={"sections_count": len(data.get("sections", []))},
         )
