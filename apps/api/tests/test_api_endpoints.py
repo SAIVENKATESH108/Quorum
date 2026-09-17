@@ -5,7 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.core.rate_limiter import report_rate_limiter
 from src.core.redis import close_redis_client
-from src.db.models import Project, Report, ReportSection, ReportStatus, Source, User
+from src.db.models import Project, Report, ReportSection, ReportStatus, User
 from src.db.session import async_session_maker
 from src.main import app
 

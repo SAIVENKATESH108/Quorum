@@ -239,6 +239,27 @@ uv run pytest tests/ -v
 
 ---
 
+## 🚀 Advanced Extensions (Lane F)
+
+Quorum features modular extensions designed for enterprise privacy, code intelligence, and open tool interoperability:
+
+### 1. Offline & Air-Gapped AI Inference (Local Ollama)
+- **Local Provider Strategy**: `OllamaProvider(AIProvider)` connects to `http://localhost:11434` supporting `llama3`, `mistral`, `qwen2.5`, `phi3`, and `deepseek-r1`.
+- **Zero Cloud Telemetry**: When configured in `local` mode, all cloud API calls (OpenRouter, Gemini, OpenAI) are bypassed, providing guaranteed air-gapped security for sensitive enterprise research.
+- **Automated Health Check**: Real-time probe of `/api/tags` detects local server availability and alerts the evaluator if `ollama serve` is not active.
+
+### 2. Codebase & GitHub Repo Paper Generator (`DocumentAnalysisAgent`)
+- **Topological Repo Decomposition**: Ingests public GitHub URLs (`https://github.com/owner/repo`) or local folder trees (via Chromium File System Access API).
+- **Parallel Module Analysis**: Decomposes code repositories into architectural areas (topologies, state synchronization, concurrency patterns, and algorithmic complexity bounds).
+- **Formal Paper Output**: Synthesizes formal research papers and architecture specifications with citations and module diagrams.
+
+### 3. Model Context Protocol (MCP) Plugin Extension Point
+- **`PluginAgent` Base Class**: Standard interface wrapping Model Context Protocol tool servers to allow pluggable agent capabilities.
+- **Dynamic `MCPPluginRegistry`**: Discovers and routes agent tasks to external MCP servers via JSON-RPC 2.0.
+- **Reference Implementation (`AcademicDOIVerifierPlugin`)**: Connects to academic registry MCP servers to cross-verify DOIs against ACM Digital Library, arXiv, and Crossref.
+
+---
+
 ## 📁 Repository Structure
 
 ```text
@@ -251,12 +272,13 @@ quorum/
 │   │   └── src/lib/            # Typed API client with auto-attaching auth headers
 │   └── api/                    # FastAPI backend
 │       ├── alembic/            # Database schema migrations
-│       ├── src/agents/         # Multi-agent orchestration engine, DAG, and providers
+│       ├── src/agents/         # Multi-agent orchestration engine, DAG, providers, and MCP plugins
 │       ├── src/api/            # REST API routers (/projects, /reports, /health)
 │       ├── src/core/           # Circuit breaker, Redis client, rate limiter, security
 │       ├── src/db/             # SQLAlchemy 2.0 async declarative models and sessions
+│       ├── src/services/       # GitHub connector and external ingestion pipelines
 │       ├── src/workers/        # Arq background worker and command queue
-│       └── tests/              # Pytest test suite covering full multi-agent flow
+│       └── tests/              # Pytest suite covering full multi-agent DAG and Lane F plugins
 ├── packages/
 │   └── shared-types/           # TypeScript types shared between web and tooling
 ├── infra/

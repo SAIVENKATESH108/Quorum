@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from src.agents.base import Agent, AgentResult, TaskNode
 from src.db.models import AgentRole, AgentTask
@@ -23,6 +23,77 @@ class OrchestratorAgent(Agent):
         if not query:
             return AgentResult(success=False, error="Task payload missing 'query'")
 
+        source_type = task.payload.get("source_type", "query") if task.payload else "query"
+        source_ref = task.payload.get("source_ref") if task.payload else None
+
+        # --- Branch A: Codebase & GitHub Repo Architecture Documentation Pipeline ---
+        if source_type in ("github_repo", "local_folder"):
+            repo_name = source_ref or query
+            dag_nodes: List[TaskNode] = []
+            analysis_node_ids: List[str] = []
+
+            areas = [
+                ("doc_arch", "System Architecture & Core Module Breakdown", "Analyze high-level topology, component boundaries, and module hierarchies"),
+                ("doc_protocols", "State Synchronization, Concurrency & Protocols", "Analyze state machines, data flow, concurrency patterns, and event dispatch"),
+                ("doc_complexity", "Algorithmic Complexity, Scaling & Design Patterns", "Analyze performance bounds, latency bottlenecks, and architectural design patterns"),
+            ]
+
+            for node_id, title, desc in areas:
+                analysis_node_ids.append(node_id)
+                dag_nodes.append(
+                    TaskNode(
+                        id=node_id,
+                        description=f"Analyze: {title}",
+                        task_type="document_analysis",
+                        agent_role=AgentRole.DOCUMENT_ANALYZER,
+                        depends_on=[],
+                        payload={
+                            "repo_name": repo_name,
+                            "focus_area": title,
+                            "description": desc,
+                            "query": query,
+                            "source_type": source_type,
+                            "source_ref": source_ref,
+                        },
+                    )
+                )
+
+            fact_check_id = "fact_check_all"
+            dag_nodes.append(
+                TaskNode(
+                    id=fact_check_id,
+                    description="Verify code claims, validate architectural invariants, and compute confidence score",
+                    task_type="fact_checking",
+                    agent_role=AgentRole.FACT_CHECKER,
+                    depends_on=list(analysis_node_ids),
+                    payload={"query": f"Codebase Architecture Specification for {repo_name}"},
+                )
+            )
+
+            write_id = "write_final_report"
+            dag_nodes.append(
+                TaskNode(
+                    id=write_id,
+                    description="Synthesize formal research paper & technical specification document with citations",
+                    task_type="report_synthesis",
+                    agent_role=AgentRole.WRITER,
+                    depends_on=[fact_check_id],
+                    payload={"query": f"Technical Architecture & Research Paper: {repo_name}"},
+                )
+            )
+
+            dag_json = [node.to_dict() for node in dag_nodes]
+            return AgentResult(
+                success=True,
+                output={
+                    "query": query,
+                    "source_type": source_type,
+                    "dag": dag_json,
+                    "node_count": len(dag_nodes),
+                },
+            )
+
+        # --- Branch B: Standard Academic Research Synthesis Pipeline ---
         system_prompt = (
             "You are the Lead Research Orchestrator for Quorum, a multi-agent intelligence platform. "
             "Given a research topic, decompose it into 3 to 6 independent, complementary subtopics for investigation. "

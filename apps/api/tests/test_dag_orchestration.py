@@ -2,7 +2,7 @@ import asyncio
 import time
 import uuid
 import pytest
-from typing import Dict, List, Set
+from typing import List, Set
 
 from src.agents.base import AgentResult, TaskNode
 from src.agents.engine import OrchestrationEngine, StatusPublisher, StatusEvent

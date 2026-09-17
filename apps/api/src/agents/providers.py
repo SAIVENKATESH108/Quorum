@@ -4,7 +4,7 @@ import logging
 import random
 import time
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import httpx
 
@@ -15,17 +15,14 @@ logger = logging.getLogger(__name__)
 
 class ProviderError(Exception):
     """Base exception for AI provider errors."""
-    pass
 
 
 class ProviderUnavailableError(ProviderError):
     """Raised when a provider is unavailable (e.g. circuit breaker is open or retries exhausted)."""
-    pass
 
 
 class CircuitBreakerOpenError(ProviderUnavailableError):
     """Raised specifically when the circuit breaker is in the OPEN state."""
-    pass
 
 
 class CircuitBreakerState(enum.Enum):
@@ -54,7 +51,7 @@ class CircuitBreaker:
 
         self.state = CircuitBreakerState.CLOSED
         self.consecutive_failures = 0
-        self.opened_at: Optional[float] = None
+        self.opened_at: float | None = None
         self._lock = asyncio.Lock()
 
     async def check_or_raise(self, provider_name: str) -> None:
@@ -129,18 +126,17 @@ class AIProvider(ABC):
         self.base_delay = base_delay
 
     @abstractmethod
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         """Execute raw API call to LLM provider."""
-        pass
 
-    async def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    async def complete(self, prompt: str, system: str | None = None) -> str:
         """
         Execute completion wrapped in circuit breaker and exponential backoff retry.
         Does NOT retry if circuit breaker is open.
         """
         await self.circuit_breaker.check_or_raise(self.name)
 
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
                 response = await self._call_api(prompt, system=system)
@@ -149,7 +145,7 @@ class AIProvider(ABC):
             except ProviderUnavailableError:
                 # Do not retry on circuit breaker open
                 raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 last_exception = exc
                 is_transient = self._is_transient_error(exc)
                 logger.warning(
@@ -186,7 +182,7 @@ class AnthropicProvider(AIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "claude-3-5-sonnet-20241022",
         **kwargs,
     ):
@@ -194,7 +190,7 @@ class AnthropicProvider(AIProvider):
         self.api_key = api_key or settings.ANTHROPIC_API_KEY or ""
         self.model = model
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
             # Mock / stub response when test key is configured
             return f"[Anthropic Mock Response - {self.model}]\nResearch Analysis:\n{prompt[:300]}..."
@@ -226,7 +222,7 @@ class OpenAIProvider(AIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "gpt-4o",
         **kwargs,
     ):
@@ -234,7 +230,7 @@ class OpenAIProvider(AIProvider):
         self.api_key = api_key or settings.OPENAI_API_KEY or ""
         self.model = model
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
             # Mock / stub response when test key is configured
             return f"[OpenAI Mock Response - {self.model}]\nExecutive Synthesis:\n{prompt[:300]}..."
@@ -270,7 +266,7 @@ class OpenRouterProvider(AIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "nvidia/nemotron-3-ultra-550b-a55b:free",
         **kwargs,
     ):
@@ -278,7 +274,7 @@ class OpenRouterProvider(AIProvider):
         self.api_key = api_key or settings.OPENROUTER_API_KEY or ""
         self.model = model
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
             return f"[OpenRouter Mock Response - {self.model}]\nResearch Analysis:\n{prompt[:300]}..."
 
@@ -318,7 +314,7 @@ class GeminiProvider(AIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "gemini-1.5-flash",
         **kwargs,
     ):
@@ -326,7 +322,7 @@ class GeminiProvider(AIProvider):
         self.api_key = api_key or settings.GEMINI_API_KEY or ""
         self.model = model
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
             return f"[Gemini Mock Response - {self.model}]\nResearch Analysis:\n{prompt[:300]}..."
 
@@ -372,7 +368,7 @@ class NeuralPulseProvider(AIProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = "https://api.evorozen.com/v1/neural-pulse",
         **kwargs,
     ):
@@ -380,7 +376,7 @@ class NeuralPulseProvider(AIProvider):
         self.api_key = api_key or settings.NEURAL_PULSE_API_KEY or ""
         self.base_url = base_url
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         # TODO: Evorozen Neural Pulse endpoint integration. Update with team workspace endpoints once registered.
         if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
             return f"[NeuralPulse Cognitive Memory Response]\nConsensus Claims Analysis:\n{prompt[:300]}..."
@@ -401,6 +397,63 @@ class NeuralPulseProvider(AIProvider):
             return data.get("text") or data.get("completion") or str(data)
 
 
+class OllamaProvider(AIProvider):
+    """
+    Local Ollama API provider for offline/air-gapped multi-agent research.
+    Connects to local Ollama runtime (default: http://localhost:11434).
+    Supports local models such as llama3, mistral, qwen2.5, phi3, deepseek-r1.
+    """
+
+    name = "Ollama"
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: float = 120.0,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.base_url = (base_url or getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+        self.model = model or getattr(settings, "OLLAMA_MODEL", "llama3")
+        self.timeout = timeout
+
+    async def is_available(self) -> bool:
+        """Pings Ollama tags endpoint to verify if local service is running."""
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                res = await client.get(f"{self.base_url}/api/tags")
+                return res.status_code == 200
+        except (httpx.HTTPError, OSError):
+            return False
+
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                res = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "stream": False,
+                    },
+                )
+                res.raise_for_status()
+                data = res.json()
+                return data.get("message", {}).get("content", "")
+            except httpx.ConnectError as exc:
+                raise ProviderUnavailableError(
+                    f"Ollama local instance not reachable at {self.base_url}. Please run 'ollama serve'."
+                ) from exc
+            except Exception as exc:
+                raise ProviderError(f"Ollama execution error: {exc}") from exc
+
+
 class ProviderFallbackChain(AIProvider):
     """
     Fallback chain that tries providers in configured priority order.
@@ -409,20 +462,20 @@ class ProviderFallbackChain(AIProvider):
 
     name = "FallbackChain"
 
-    def __init__(self, providers: List[AIProvider]):
+    def __init__(self, providers: list[AIProvider]):
         super().__init__()
         self.providers = providers
 
-    async def _call_api(self, prompt: str, system: Optional[str] = None) -> str:
+    async def _call_api(self, prompt: str, system: str | None = None) -> str:
         # ProviderFallbackChain overrides complete() directly
         return await self.complete(prompt, system=system)
 
-    async def complete(self, prompt: str, system: Optional[str] = None) -> str:
+    async def complete(self, prompt: str, system: str | None = None) -> str:
         """Attempt completion through providers in priority sequence."""
         if not self.providers:
             raise ProviderUnavailableError("No providers configured in fallback chain.")
 
-        errors: List[str] = []
+        errors: list[str] = []
         for provider in self.providers:
             try:
                 logger.debug(f"[FallbackChain] Attempting provider '{provider.name}'...")
@@ -431,7 +484,7 @@ class ProviderFallbackChain(AIProvider):
                 logger.warning(f"[FallbackChain] Provider '{provider.name}' unavailable: {exc}. Falling through...")
                 errors.append(f"{provider.name}: {exc}")
                 continue
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(f"[FallbackChain] Unexpected error with '{provider.name}': {exc}. Falling through...")
                 errors.append(f"{provider.name}: {exc}")
                 continue
@@ -441,16 +494,22 @@ class ProviderFallbackChain(AIProvider):
         )
 
 
-def get_default_provider() -> AIProvider:
+def get_default_provider(mode: str = "cloud") -> AIProvider:
     """
     Instantiate provider fallback chain.
-    Priority: OpenRouter (free NVIDIA models) → Gemini → OpenAI → NeuralPulse.
+    If mode is 'local' or 'offline', pins strictly to OllamaProvider (zero cloud calls).
+    Otherwise Priority: OpenRouter → Gemini → OpenAI → NeuralPulse → Ollama.
     """
-    providers: List[AIProvider] = [
+    if mode in ("local", "offline"):
+        return OllamaProvider()
+
+    providers: list[AIProvider] = [
         OpenRouterProvider(),
         GeminiProvider(),
         OpenAIProvider(),
         NeuralPulseProvider(),
+        OllamaProvider(),
     ]
     return ProviderFallbackChain(providers)
+
 

@@ -1,5 +1,3 @@
-import base64
-import json
 import logging
 import uuid
 from typing import Optional
@@ -85,12 +83,19 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     # Attempt JWT decoding (Clerk JWKS, PEM, Secret Key, or dev verification)
     payload = None
 
-    # 1. Clerk JWKS verification if JWKS URL or Issuer is configured
+    # 1. Clerk JWKS verification if JWKS URL or Issuer is configured and token is RS256
+    token_alg = "RS256"
+    try:
+        header = jwt.get_unverified_header(token)
+        token_alg = header.get("alg", "RS256")
+    except Exception:
+        pass
+
     jwks_url = settings.CLERK_JWKS_URL
     if not jwks_url and settings.CLERK_ISSUER:
         jwks_url = f"{settings.CLERK_ISSUER.rstrip('/')}/.well-known/jwks.json"
 
-    if jwks_url:
+    if jwks_url and token_alg == "RS256":
         try:
             jwk_client = jwt.PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
             signing_key = jwk_client.get_signing_key_from_jwt(token)

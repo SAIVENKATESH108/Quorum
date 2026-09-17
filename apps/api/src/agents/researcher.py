@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from src.agents.base import Agent, AgentResult
 from src.db.models import AgentRole, AgentTask

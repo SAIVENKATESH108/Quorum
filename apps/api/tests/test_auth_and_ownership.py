@@ -2,13 +2,11 @@ import uuid
 from unittest.mock import AsyncMock, patch
 import jwt
 import pytest
-from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-from starlette.websockets import WebSocketDisconnect
 
 from src.core.redis import close_redis_client
 from src.core.security import get_current_user_from_token
-from src.db.models import Project, Report, User
+from src.db.models import User
 from src.db.session import async_session_maker
 from src.main import app
 
@@ -84,7 +82,10 @@ async def test_strict_user_ownership_isolation():
         headers_b = {"Authorization": f"Bearer {user_b_token}"}
 
         # Patch background execution to keep test instant and decoupled from external AI APIs
-        with patch("src.api.projects._run_report_pipeline_background", new_callable=AsyncMock):
+        with (
+            patch("src.api.projects._run_report_pipeline_background", new_callable=AsyncMock),
+            patch("src.agents.engine.OrchestrationEngine.run_report", new_callable=AsyncMock),
+        ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 # User A creates Project A

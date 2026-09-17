@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -10,7 +9,7 @@ from sqlalchemy import select, update
 from src.agents.base import AgentResult
 from src.agents.commands import AgentTaskCommand
 from src.agents.factory import AgentFactory
-from src.agents.providers import AnthropicProvider, OpenAIProvider, ProviderFallbackChain
+from src.agents.providers import ProviderFallbackChain
 from src.core.config import settings
 from src.core.events import format_report_channel, publish_event
 from src.db.models import (
@@ -19,9 +18,7 @@ from src.db.models import (
     AgentRunStatus,
     AgentTask,
     AgentTaskStatus,
-    Report,
     ReportSection,
-    ReportStatus,
 )
 from src.db.session import async_session_maker
 
@@ -198,7 +195,7 @@ if __name__ == "__main__":
     try:
         print(f"[WORKER] Starting Arq agent worker with Redis: {settings.REDIS_URL}...")
         run_worker(WorkerSettings)
-    except (TimeoutError, Exception) as exc:
+    except (TimeoutError, Exception):
         print(f"\n[WORKER INFO] Could not connect to Redis at '{settings.REDIS_URL}'.")
         print("To run the dedicated worker locally, start Redis using Docker:")
         print("  docker run -d -p 6379:6379 redis:7-alpine")

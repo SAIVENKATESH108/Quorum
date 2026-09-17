@@ -3,19 +3,26 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.api.chat import router as chat_router
 from src.api.projects import router as projects_router
 from src.api.reports import router as reports_router
-from src.api.websocket import router as websocket_router
 from src.api.sources import router as sources_router
-from src.api.chat import router as chat_router
+from src.api.websocket import router as websocket_router
 from src.core.config import settings
+from src.core.logging import RequestIDMiddleware, setup_logging
 from src.schemas.health import HealthResponse
+
+# Initialize structured JSON logging
+setup_logging()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="Quorum - Multi-Agent AI Research & Report-Generation Platform API",
 )
+
+# Correlation & Request ID Middleware
+app.add_middleware(RequestIDMiddleware)
 
 # Structured Error Exception Handlers
 @app.exception_handler(HTTPException)

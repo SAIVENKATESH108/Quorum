@@ -2,11 +2,8 @@ import asyncio
 import uuid
 from src.db.session import async_session_maker
 from src.db.models import (
-    Report,
     ReportSection,
-    Source,
     ReportSource,
-    AgentRun,
     AgentRole,
     AgentRunStatus,
     AgentTask,
@@ -57,7 +54,7 @@ async def test_repos() -> None:
         )
         session.add(report_source)
         await session.flush()
-        print(f"[OK] Linked Report and Source via ReportSource association")
+        print("[OK] Linked Report and Source via ReportSource association")
 
         # 5. Test ReportRepository.get_with_sections (eager loading)
         loaded_report = await report_repo.get_with_sections(report.id)
@@ -65,7 +62,7 @@ async def test_repos() -> None:
         assert len(loaded_report.sections) >= 1
         assert len(loaded_report.report_sources) >= 1
         assert loaded_report.report_sources[0].source is not None
-        print(f"[OK] ReportRepository.get_with_sections verified eager loading:")
+        print("[OK] ReportRepository.get_with_sections verified eager loading:")
         print(f"     - Sections count: {len(loaded_report.sections)}")
         print(f"     - Eager loaded section: '{loaded_report.sections[0].heading}'")
         print(f"     - Associated source: '{loaded_report.report_sources[0].source.title}'")

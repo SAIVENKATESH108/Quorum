@@ -7,8 +7,12 @@ from src.db.models import ReportStatus
 
 
 class ReportCreate(BaseModel):
-    """Schema for submitting a research query to generate a report."""
-    query: str = Field(..., min_length=3, description="The research query / prompt")
+    """Schema for submitting a research query or codebase/paper generation request."""
+    query: str = Field(..., min_length=3, description="The research query, repo URL, or project name")
+    source_type: Optional[str] = Field("query", description="'query', 'github_repo', or 'local_folder'")
+    source_ref: Optional[str] = Field(None, description="GitHub repository URL or local folder path")
+    provider_mode: Optional[str] = Field("cloud", description="'cloud' or 'local' (Ollama offline)")
+    file_tree: Optional[dict] = Field(None, description="Optional client-read local directory tree and files")
 
 
 class ReportSectionResponse(BaseModel):
@@ -36,6 +40,8 @@ class ReportSummaryResponse(BaseModel):
     project_id: uuid.UUID
     status: ReportStatus
     query: str
+    source_type: Optional[str] = "query"
+    source_ref: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
 

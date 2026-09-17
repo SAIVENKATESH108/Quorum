@@ -1,4 +1,5 @@
 from src.agents.base import Agent
+from src.agents.document_analyzer import DocumentAnalysisAgent
 from src.agents.fact_checker import FactCheckerAgent
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.providers import AIProvider
@@ -21,5 +22,7 @@ class AgentFactory:
             return FactCheckerAgent(provider)
         elif role == AgentRole.WRITER:
             return WriterAgent(provider)
+        elif role == AgentRole.DOCUMENT_ANALYZER:
+            return DocumentAnalysisAgent(provider)
         else:
             raise ValueError(f"Unsupported agent role: '{role}'")

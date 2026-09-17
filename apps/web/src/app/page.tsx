@@ -30,7 +30,7 @@ export default function PublicLandingPage() {
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-text-secondary">
+          <nav aria-label="Main Navigation" className="hidden md:flex items-center gap-6 text-sm font-medium text-text-secondary">
             <a href="#architecture" className="hover:text-text-primary transition-colors">
               Architecture
             </a>
@@ -39,6 +39,15 @@ export default function PublicLandingPage() {
             </a>
             <a href="#sample-report" className="hover:text-text-primary transition-colors">
               Live Verified Report
+            </a>
+            <a
+              href="/Quorum_System_Documentation.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent transition-colors inline-flex items-center gap-1 font-semibold text-accent/90"
+              title="Download 9-Page Publication-Grade System Documentation PDF"
+            >
+              System Spec PDF
             </a>
             <Link href="/sources" className="hover:text-text-primary transition-colors">
               Evidence Library
@@ -101,6 +110,17 @@ export default function PublicLandingPage() {
               </Link>
 
               <a
+                href="/Quorum_System_Documentation.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-5 py-3.5 text-sm font-semibold text-purple-400 hover:bg-purple-500/20 transition-all"
+                title="Download 9-Page Publication-Grade System Documentation PDF"
+              >
+                <BookOpen className="h-4 w-4 text-purple-400" />
+                <span>9-Page System Spec (PDF)</span>
+              </a>
+
+              <a
                 href="#sample-report"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-text-primary hover:bg-surface-hover hover:border-accent/40 transition-all"
               >
@@ -109,10 +129,10 @@ export default function PublicLandingPage() {
               </a>
 
               <Link
-                href="/sign-in"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-surface-subtle px-4 py-3.5 text-xs font-mono text-text-secondary hover:text-text-primary transition-colors"
+                href="/api/guest-session"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-colors"
               >
-                <span>Demo / Judge Access →</span>
+                <span>⚡ Hackathon Judge 1-Click Access →</span>
               </Link>
             </div>
 

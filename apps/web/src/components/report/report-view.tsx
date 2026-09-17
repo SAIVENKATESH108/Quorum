@@ -189,6 +189,16 @@ export function ReportView({ report }: ReportViewProps) {
                   Download .md
                 </Button>
 
+                <a
+                  href={`/api/reports/${report.id}/pdf`}
+                  download={`quorum-research-${report.id.slice(0, 8)}.pdf`}
+                  className="inline-flex items-center justify-center rounded-sm text-xs font-medium border border-accent/40 bg-accent/10 text-accent hover:bg-accent/20 h-8 px-3 gap-1.5 transition-colors shadow-xs select-none"
+                  title="Download publication-grade ReportLab PDF with double borders, citations & running headers"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Publication PDF
+                </a>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -196,7 +206,7 @@ export function ReportView({ report }: ReportViewProps) {
                   className="text-xs gap-1.5"
                 >
                   <Printer className="h-3.5 w-3.5" />
-                  Print / PDF
+                  Print
                 </Button>
               </div>
             </div>

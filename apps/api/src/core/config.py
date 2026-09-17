@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     CLERK_ISSUER: Optional[str] = None
     CLERK_PEM_PUBLIC_KEY: Optional[str] = None
 
+    # Local Ollama Provider configuration
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3"
+
     # CORS origins
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",

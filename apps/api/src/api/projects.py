@@ -3,7 +3,7 @@ import logging
 import uuid
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,6 +119,8 @@ async def create_report(
         project_id=project.id,
         query=payload.query,
         status=ReportStatus.PENDING,
+        source_type=payload.source_type or "query",
+        source_ref=payload.source_ref,
     )
     db.add(report)
     await db.commit()

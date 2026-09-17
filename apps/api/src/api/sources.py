@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends
@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.security import get_current_user
-from src.db.models import AgentRole, AgentRun, AgentTask, Project, Report, Source, User
+from src.db.models import AgentRun, AgentTask, Project, Report, Source, User
 from src.db.session import get_db
 
 logger = logging.getLogger(__name__)

@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 from typing import Optional
 

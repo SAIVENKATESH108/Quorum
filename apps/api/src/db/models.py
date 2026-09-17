@@ -34,6 +34,7 @@ class AgentRole(str, enum.Enum):
     RESEARCHER = "researcher"
     FACT_CHECKER = "fact_checker"
     WRITER = "writer"
+    DOCUMENT_ANALYZER = "document_analyzer"
 
 
 class AgentRunStatus(str, enum.Enum):
@@ -128,6 +129,8 @@ class Report(Base):
         nullable=False,
     )
     query: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(50), default="query", nullable=True)
+    source_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

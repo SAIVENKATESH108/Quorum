@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.agents.base import AgentResult, TaskNode
 from src.agents.commands import AgentTaskCommand
 from src.agents.factory import AgentFactory
-from src.agents.providers import AIProvider, ProviderFallbackChain
+from src.agents.providers import AIProvider
 from src.db.models import (
     AgentRole,
     AgentRun,
@@ -18,7 +18,6 @@ from src.db.models import (
     AgentTask,
     AgentTaskStatus,
     Report,
-    ReportSection,
     ReportStatus,
 )
 from src.db.session import async_session_maker
@@ -157,9 +156,24 @@ class OrchestrationEngine:
             if not report:
                 raise ValueError(f"Report not found: {report_id}")
             query = report.query
+            source_type = getattr(report, "source_type", "query") or "query"
+            source_ref = getattr(report, "source_ref", None)
 
         # Step 2: Transition status to PLANNING and emit websocket event
         await self._update_report_status(report_id, ReportStatus.PLANNING)
+
+        # If analyzing GitHub repository, fetch repository metadata and tree
+        key_files = []
+        file_tree = []
+        if source_type == "github_repo" and source_ref:
+            try:
+                from src.services.github_connector import GitHubConnector
+                connector = GitHubConnector()
+                repo_context = await connector.fetch_repository_context(source_ref)
+                file_tree = repo_context.get("file_paths", [])
+                key_files = repo_context.get("key_files", [])
+            except Exception as exc:
+                logger.warning(f"[ENGINE] GitHub fetching failed for {source_ref}: {exc}")
 
         # Step 3: Run OrchestratorAgent to decompose query into topological sub-tasks
         orchestrator_agent = AgentFactory.create(AgentRole.ORCHESTRATOR, self.provider)
@@ -168,7 +182,13 @@ class OrchestrationEngine:
             agent_run_id=uuid.uuid4(),
             task_type="decompose_query",
             status=AgentTaskStatus.RUNNING,
-            payload={"query": query},
+            payload={
+                "query": query,
+                "source_type": source_type,
+                "source_ref": source_ref,
+                "file_tree": file_tree,
+                "key_files": key_files,
+            },
         )
         plan_result = await orchestrator_agent.run(plan_task)
 
