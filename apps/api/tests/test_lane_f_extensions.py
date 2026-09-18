@@ -72,7 +72,7 @@ async def test_mcp_plugin_registry_and_doi_verifier():
         task_type="verify_citations",
         payload={
             "sources": [
-                {"url": "https://dl.acm.org/doi/10.1145/3149.214121"},
+                {"url": "https://dl.acm.org/doi/10.1145/571637.571640"},
                 {"url": "https://arxiv.org/abs/2201.05677"},
             ]
         },

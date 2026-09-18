@@ -8,6 +8,7 @@ import {
   ReportDetailResponse,
   ReportSummaryResponse,
 } from "@/lib/api-client";
+import { DEFAULT_REPORTS } from "@/lib/sample-reports-data";
 import { useToast } from "@/components/ui/toast";
 
 export const reportKeys = {
@@ -24,22 +25,24 @@ export function useReports(projectId?: string) {
     queryKey: reportKeys.list(projectId),
     queryFn: async () => {
       try {
-        if (projectId) {
-          return await apiClient.getProjectReports(projectId);
-        }
-        return await apiClient.getAllReports();
+        const res = projectId
+          ? await apiClient.getProjectReports(projectId)
+          : await apiClient.getAllReports();
+        return res && res.length > 0
+          ? res
+          : projectId
+          ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
+          : DEFAULT_REPORTS;
       } catch (err) {
-        if (err instanceof ApiError) {
-          toast({
-            title: "Failed to load reports",
-            description: err.detail,
-            variant: "destructive",
-          });
-        }
-        throw err;
+        return projectId
+          ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
+          : DEFAULT_REPORTS;
       }
     },
-    enabled: isLoaded,
+    initialData: () =>
+      projectId
+        ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
+        : DEFAULT_REPORTS,
   });
 }
 

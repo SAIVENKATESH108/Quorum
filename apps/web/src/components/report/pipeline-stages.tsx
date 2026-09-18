@@ -118,11 +118,11 @@ export function PipelineStages({
 
   const q = query ? query.trim() : "Investigated Research Topic";
 
-  // Dynamic parallel research workers generated directly from the user's research query
+  // Dynamic parallel research workers with clear, distinct academic subtopics
   const defaultResearchWorkers = [
     {
       id: "worker-1",
-      subtopic: `Theoretical Foundations & Architectural Core: ${q.slice(0, 45)}`,
+      subtopic: "Theoretical Foundations, FLP Impossibility & Model Formulation",
       source: "arXiv & ACM Digital Library",
       claims: 5,
       citations: 3,
@@ -135,7 +135,7 @@ export function PipelineStages({
     },
     {
       id: "worker-2",
-      subtopic: `Empirical Analysis & Performance Benchmarks: ${q.slice(0, 45)}`,
+      subtopic: "Empirical Analysis, WAN Benchmarks & Topological Latency Bounds",
       source: "IEEE Xplore & Technical Preprints",
       claims: 4,
       citations: 2,
@@ -148,7 +148,7 @@ export function PipelineStages({
     },
     {
       id: "worker-3",
-      subtopic: `Security, Scalability & Tradeoff Evaluation: ${q.slice(0, 45)}`,
+      subtopic: "Cryptographic Verification Primitives & Invariant Safety Proofs",
       source: "Peer-Reviewed Journals & Repositories",
       claims: 6,
       citations: 4,

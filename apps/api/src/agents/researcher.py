@@ -155,9 +155,9 @@ class ResearcherAgent(Agent):
             claims = [
                 {
                     "claim_text": f"Architectural invariants within {subtopic} deliver fault-tolerant execution under adversarial partition conditions.",
-                    "source_url": "https://doi.org/10.1145/3149.214121",
-                    "source_title": f"Algorithmic Foundations in Distributed Consensus ({subtopic})",
-                    "doi": "10.1145/3149.214121",
+                    "source_url": "https://doi.org/10.1145/571637.571640",
+                    "source_title": f"Practical Byzantine Fault Tolerance and Proactive Recovery ({subtopic})",
+                    "doi": "10.1145/571637.571640",
                     "reasoning": "Standard peer-reviewed distributed consensus bounds documented in literature.",
                 }
             ]

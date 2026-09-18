@@ -113,7 +113,7 @@ async def test_successful_report_creation_and_latency():
                 start_time = time.perf_counter()
                 report_res = await client.post(
                     f"/api/projects/{project_id}/reports",
-                    json={"query": "Optimistic Rollups vs ZK Rollups Performance"},
+                    json={"query": "Distributed Consensus Mechanisms & FLP Impossibility"},
                     headers=headers,
                 )
                 elapsed = time.perf_counter() - start_time
@@ -129,7 +129,7 @@ async def test_successful_report_creation_and_latency():
             assert report_data["status"] == "pending"
             assert "report_id" in report_data
             assert report_data["id"] == report_data["report_id"]
-            assert report_data["query"] == "Optimistic Rollups vs ZK Rollups Performance"
+            assert report_data["query"] == "Distributed Consensus Mechanisms & FLP Impossibility"
     finally:
         await close_redis_client()
 

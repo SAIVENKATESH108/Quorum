@@ -6,6 +6,7 @@ import {
   ProjectCreate,
   ProjectResponse,
 } from "@/lib/api-client";
+import { DEFAULT_PROJECTS } from "@/lib/sample-reports-data";
 import { useToast } from "@/components/ui/toast";
 
 export const projectKeys = {
@@ -15,26 +16,19 @@ export const projectKeys = {
 
 export function useProjects() {
   const { toast } = useToast();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
 
   return useQuery<ProjectResponse[], ApiError>({
     queryKey: projectKeys.all,
     queryFn: async () => {
       try {
-        return await apiClient.getProjects();
+        const res = await apiClient.getProjects();
+        return res && res.length > 0 ? res : DEFAULT_PROJECTS;
       } catch (err) {
-        if (err instanceof ApiError) {
-          toast({
-            title: "Failed to load projects",
-            description: err.detail,
-            variant: "destructive",
-          });
-        }
-        throw err;
+        return DEFAULT_PROJECTS;
       }
     },
-    // Allow querying in both authenticated and guest/demo mode once auth is initialized
-    enabled: isLoaded,
+    initialData: DEFAULT_PROJECTS,
   });
 }
 

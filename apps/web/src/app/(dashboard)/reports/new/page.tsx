@@ -28,15 +28,15 @@ type ProviderMode = "cloud" | "local";
 
 const PROMPT_SUGGESTIONS = [
   "Fault-Tolerant Consensus in Asynchronous Networks and FLP Impossibility",
-  "Optimistic Rollups vs ZK Rollups: Prover Latency & Finality Benchmarks",
-  "Autonomous Multi-Agent Consensus Mechanisms in Decentralized Computing",
+  "Formal Verification of Distributed Systems and Safety Invariants in TLA+",
+  "Autonomous Multi-Agent Orchestration & Topological DAG Workflows",
   "Post-Quantum Cryptographic Transition: Lattice-based Signatures vs Dilithium",
 ];
 
 const GITHUB_SUGGESTIONS = [
   "https://github.com/facebook/react",
   "https://github.com/astral-sh/uv",
-  "https://github.com/MystenLabs/sui",
+  "https://github.com/fastapi/fastapi",
 ];
 
 export default function NewReportPage() {

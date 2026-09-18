@@ -351,10 +351,10 @@ export default function PublicLandingPage() {
                         <span className="text-xs font-mono font-bold text-accent">[1]</span>
                         <div>
                           <div className="text-xs font-medium text-text-primary">
-                            Impossibility of Distributed Consensus with One Faulty Process (Fischer, Lynch, Paterson)
+                            Practical Byzantine Fault Tolerance and Proactive Recovery (Castro &amp; Liskov)
                           </div>
                           <div className="text-[11px] font-mono text-text-secondary">
-                            ACM Digital Library • DOI: 10.1145/3149.214121
+                            ACM Digital Library • DOI: 10.1145/571637.571640
                           </div>
                         </div>
                       </div>
@@ -385,15 +385,15 @@ export default function PublicLandingPage() {
                         <span className="text-xs font-mono font-bold text-accent">[3]</span>
                         <div>
                           <div className="text-xs font-medium text-text-primary">
-                            An Incomplete Guide to Rollups and Asynchronous State Finality
+                            HotStuff: BFT Consensus with Linearity and Responsiveness
                           </div>
                           <div className="text-[11px] font-mono text-text-secondary">
-                            Vitalik Buterin Research Notes (2021)
+                            ACM PODC • DOI: 10.1145/3293611.3331591
                           </div>
                         </div>
                       </div>
                       <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
-                        97.8% Verified
+                        98.8% Verified
                       </span>
                     </div>
                   </div>

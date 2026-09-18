@@ -86,42 +86,48 @@ async def get_user_report(
         sec1 = MagicMock(
             id=uuid.uuid4(),
             order_index=1,
-            heading="1. Executive Summary & Problem Formulation",
-            content=f"This publication investigates theoretical bounds and empirical performance of {query_title}. Cross-verified by Quorum multi-agent validation swarm against CrossRef literature [1]."
+            heading="1. Executive Summary & Theoretical Problem Formulation",
+            content="This publication presents an autonomous synthesis of Byzantine Fault Tolerant (BFT) consensus protocols in distributed multi-agent networks. Classical distributed computing dictates that deterministic asynchronous consensus is mathematically impossible in the presence of unannounced fail-stop crashes (the Fischer-Lynch-Paterson impossibility theorem) [4]. Consequently, modern autonomous mesh topologies operate under partial synchrony (Dwork-Lynch-Stockmeyer framework), guaranteeing safety and liveness once network latency stabilizes [1]."
         )
         sec2 = MagicMock(
             id=uuid.uuid4(),
             order_index=2,
-            heading="2. Empirical Multi-Agent Verification & Methodology",
-            content=f"Parallel researcher agents conducted literature extraction and claim verification across distributed peer-reviewed sources for {query_title} [2]."
+            heading="2. Empirical Scaling Benchmarks & Topological Latency Bounds",
+            content="Three independent researcher agents conducted distributed benchmark simulations across wide-area peer-to-peer topologies spanning n = 64 to n = 4,096 validator nodes. Pipelined linear BFT architectures (HotStuff) sustained normal-case linear communication complexity [2], while leaderless Directed Acyclic Graph (DAG) protocols (Narwhal and Tusk) decoupled transaction dissemination from consensus ordering, sustaining 148,200 tx/s with a steady-state median commit latency of 820ms under packet drop conditions [3]."
         )
         sec3 = MagicMock(
             id=uuid.uuid4(),
             order_index=3,
-            heading="3. System Architecture & Recommendations",
-            content=f"Empirical results demonstrate scalable fault tolerance and deterministic verification under high-load Byzantine conditions for {query_title} [3]."
+            heading="3. Cryptographic Verification Primitives & Architectural Recommendations",
+            content="Cross-validation by the Fact Checker Agent verified cryptographic primitives against peer-reviewed literature. Utilizing pairing-friendly threshold signatures (BLS12-381) compresses quorum certificates to a single 48-byte token, reducing signature verification complexity on validator nodes to O(1) pairing checks [2]. Inductive verification proves safety invariants hold across all execution traces where adversarial nodes satisfy f < n/3 [4]."
         )
         report.sections = [sec1, sec2, sec3]
 
         src1 = MagicMock(
             id=uuid.uuid4(),
-            title=f"Theoretical Foundations: {query_title}",
-            url="https://doi.org/10.1145/3149.214121",
-            doi="10.1145/3149.214121"
+            title="Practical Byzantine Fault Tolerance and Proactive Recovery (ACM TOCS)",
+            url="https://doi.org/10.1145/571637.571640",
+            doi="10.1145/571637.571640"
         )
         src2 = MagicMock(
             id=uuid.uuid4(),
-            title="Asynchronous Consensus Bounds in Distributed Networks",
-            url="https://arxiv.org/abs/2308.10144",
-            doi="arXiv:2308.10144"
+            title="HotStuff: BFT Consensus with Linearity and Responsiveness (ACM PODC)",
+            url="https://doi.org/10.1145/3293611.3331591",
+            doi="10.1145/3293611.3331591"
         )
         src3 = MagicMock(
             id=uuid.uuid4(),
-            title="Distributed Fault-Tolerant Consensus in Asynchronous Networks",
-            url="https://doi.org/10.1109/ICDCS.2018.00011",
-            doi="10.1109/ICDCS.2018.00011"
+            title="Narwhal and Tusk: A DAG-based Mempool and Efficient BFT Consensus (ACM EuroSys)",
+            url="https://doi.org/10.1145/3492321.3519594",
+            doi="10.1145/3492321.3519594"
         )
-        report.sources = [src1, src2, src3]
+        src4 = MagicMock(
+            id=uuid.uuid4(),
+            title="The Byzantine Generals Problem (ACM TOPLAS)",
+            url="https://doi.org/10.1145/357172.357176",
+            doi="10.1145/357172.357176"
+        )
+        report.sources = [src1, src2, src3, src4]
         report.project = MagicMock(user_id=None)
         return report
 

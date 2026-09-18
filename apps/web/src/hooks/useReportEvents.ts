@@ -57,9 +57,9 @@ export function useReportEvents(
       setConnectionStatus(reportId, "connected");
 
       const userQuery = query?.trim() || "Active Research Inquiry";
-      const sub1 = `Foundations & Theory: ${userQuery.slice(0, 36)}`;
-      const sub2 = `Empirical Architectures: ${userQuery.slice(0, 36)}`;
-      const sub3 = `Security & Frontiers: ${userQuery.slice(0, 36)}`;
+      const sub1 = "Theoretical Foundations, FLP Impossibility & Model Formulation";
+      const sub2 = "Empirical Architectures, WAN Benchmarks & Topological Latency Bounds";
+      const sub3 = "Cryptographic Verification Primitives & Invariant Safety Proofs";
 
       const mockEvents: Array<{ delay: number; event: ReportEventPayload }> = [
         {
@@ -71,7 +71,7 @@ export function useReportEvents(
               status: "planning",
               agent_role: "orchestrator",
               metadata: {
-                message: `Orchestrator decomposing "${userQuery.slice(0, 40)}" into 3 parallel subtopics`,
+                message: "Orchestrator decomposing query into 3 parallel subtopics",
                 stage: "DAG generation",
                 subtopics: 3,
               },
