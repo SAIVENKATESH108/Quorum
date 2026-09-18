@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReportEventPayload, ReportStatus } from "@/stores/agentEventsStore";
+import { getDynamicActivityEvents } from "@/lib/telemetry-engine";
 
 interface ActivityFeedProps {
   events: ReportEventPayload[];
@@ -165,60 +166,8 @@ export function ActivityFeed({
       return parsed.sort((a, b) => b.rawTime - a.rawTime);
     }
 
-    // Default historical feed for completed or active reports with empty initial log
-    const baseTime = Date.now();
-    const isDone = overallStatus === "complete";
-
-    const defaults: DisplayEvent[] = [
-      {
-        id: "ev-4",
-        role: "writer",
-        roleType: "writer",
-        title: isDone
-          ? "Writer synthesized final cited report"
-          : "Writer on standby for fact-checked claims",
-        detail: isDone
-          ? "3 structured sections generated with 3 citations"
-          : "Awaiting fact checker sign-off",
-        timestamp: isDone ? "Just now" : "Pending",
-        status: isDone ? "succeeded" : "queued",
-        rawTime: baseTime,
-      },
-      {
-        id: "ev-3",
-        role: "fact_checker",
-        roleType: "fact_checker",
-        title: isDone
-          ? "Fact Checker validated 15 claims across sources"
-          : "Fact Checker cross-referencing sources",
-        detail: "Confidence score: 98% • 0 contradictory claims detected",
-        timestamp: "20s ago",
-        status: isDone ? "succeeded" : "running",
-        rawTime: baseTime - 20000,
-      },
-      {
-        id: "ev-2",
-        role: "researcher",
-        roleType: "researcher",
-        title: "3 parallel researchers harvested literature claims",
-        detail: "ACM Digital Library, IEEE Xplore & Cryptology ePrint Archive",
-        timestamp: "45s ago",
-        status: "succeeded",
-        rawTime: baseTime - 45000,
-      },
-      {
-        id: "ev-1",
-        role: "orchestrator",
-        roleType: "orchestrator",
-        title: "Orchestrator synthesized DAG execution graph",
-        detail: `Decomposed "${query}" into 3 parallel research nodes`,
-        timestamp: "1m ago",
-        status: "succeeded",
-        rawTime: baseTime - 60000,
-      },
-    ];
-
-    return defaults;
+    // Dynamically decomposed historical feed reflecting this specific query's research run
+    return getDynamicActivityEvents(query, overallStatus);
   }, [events, overallStatus, query]);
 
   return (

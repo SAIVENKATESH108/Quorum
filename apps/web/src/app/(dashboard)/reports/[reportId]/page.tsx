@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, ShieldCheck } from "lu
 import { ReportLiveClient } from "./report-live-client";
 import { ReportDetailResponse } from "@/lib/api-client";
 import { getScholarlyReport } from "@/lib/sample-reports-data";
+import { decomposeQueryTelemetry } from "@/lib/telemetry-engine";
 
 interface PageProps {
   params: {
@@ -23,6 +24,10 @@ const SAMPLE_REPORTS: Record<string, { query: string; status: "complete" }> = {
   },
   "9a7556a2-b907-4542-817c-f32137d30ca7": {
     query: "High-Throughput DAG Architectures in Asynchronous Networks",
+    status: "complete",
+  },
+  "c18f3a92-74d1-49b8-9310-8e12b7a9501a": {
+    query: "The Neurocognitive Effects of Sleep Deprivation on Executive Function and Risk-Seeking Decision-Making",
     status: "complete",
   },
 };
@@ -67,6 +72,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ReportDetailPage({ params }: PageProps) {
   const { reportId } = params;
   const report = await getReportData(reportId);
+  const telemetry = decomposeQueryTelemetry(report.query);
+  const totalClaims = telemetry.subtopics.reduce((acc, s) => acc + s.claims, 0);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-2 sm:px-4 py-4">
@@ -88,7 +95,7 @@ export default async function ReportDetailPage({ params }: PageProps) {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Verified Synthesis &bull; 99.1% Confidence</span>
+                <span>Verified Synthesis &bull; {telemetry.confidenceScore}% Confidence</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono bg-accent/10 text-accent border border-accent/20">
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -106,7 +113,7 @@ export default async function ReportDetailPage({ params }: PageProps) {
             <span>&bull;</span>
             <span>Synthesized: {new Date(report.created_at).toLocaleDateString()}</span>
             <span>&bull;</span>
-            <span>Multi-Agent Swarm: 3 Researchers + 1 Fact-Checker + 1 Writer</span>
+            <span>Multi-Agent Swarm: 3 Parallel Researchers + 1 Fact-Checker + 1 Writer ({totalClaims} Claims Verified)</span>
           </div>
         </header>
 

@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportStatus, TaskState } from "@/stores/agentEventsStore";
+import { getDynamicResearchWorkers } from "@/lib/telemetry-engine";
 
 export interface PipelineStagesProps {
   status: ReportStatus;
@@ -118,50 +119,7 @@ export function PipelineStages({
 
   const q = query ? query.trim() : "Investigated Research Topic";
 
-  // Dynamic parallel research workers with clear, distinct academic subtopics
-  const defaultResearchWorkers = [
-    {
-      id: "worker-1",
-      subtopic: "Theoretical Foundations, FLP Impossibility & Model Formulation",
-      source: "arXiv & ACM Digital Library",
-      claims: 5,
-      citations: 3,
-      status:
-        status === "researching"
-          ? ("running" as const)
-          : ["fact_checking", "writing", "complete"].includes(status)
-          ? ("succeeded" as const)
-          : ("queued" as const),
-    },
-    {
-      id: "worker-2",
-      subtopic: "Empirical Analysis, WAN Benchmarks & Topological Latency Bounds",
-      source: "IEEE Xplore & Technical Preprints",
-      claims: 4,
-      citations: 2,
-      status:
-        status === "researching"
-          ? ("running" as const)
-          : ["fact_checking", "writing", "complete"].includes(status)
-          ? ("succeeded" as const)
-          : ("queued" as const),
-    },
-    {
-      id: "worker-3",
-      subtopic: "Cryptographic Verification Primitives & Invariant Safety Proofs",
-      source: "Peer-Reviewed Journals & Repositories",
-      claims: 6,
-      citations: 4,
-      status:
-        status === "researching"
-          ? ("running" as const)
-          : ["fact_checking", "writing", "complete"].includes(status)
-          ? ("succeeded" as const)
-          : ("queued" as const),
-    },
-  ];
-
-  // Resolve research tasks: either from live store or default worker cards
+  // Resolve research tasks: either from live store or dynamically decomposed from query
   const displayWorkers =
     researchTasks.length > 0
       ? researchTasks.map((t, idx) => {
@@ -177,7 +135,7 @@ export function PipelineStages({
             status: t.status,
           };
         })
-      : defaultResearchWorkers;
+      : getDynamicResearchWorkers(q, status);
 
   const isResearchActiveOrDone = [
     "researching",

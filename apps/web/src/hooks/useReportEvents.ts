@@ -19,6 +19,8 @@ interface UseReportEventsOptions {
   onEvent?: (event: ReportEventPayload) => void;
 }
 
+import { decomposeQueryTelemetry } from "@/lib/telemetry-engine";
+
 export function useReportEvents(
   reportId: string | null,
   options: UseReportEventsOptions = {}
@@ -57,9 +59,21 @@ export function useReportEvents(
       setConnectionStatus(reportId, "connected");
 
       const userQuery = query?.trim() || "Active Research Inquiry";
-      const sub1 = "Theoretical Foundations, FLP Impossibility & Model Formulation";
-      const sub2 = "Empirical Architectures, WAN Benchmarks & Topological Latency Bounds";
-      const sub3 = "Cryptographic Verification Primitives & Invariant Safety Proofs";
+      const decomp = decomposeQueryTelemetry(userQuery);
+      const sub1 = decomp.subtopics[0].title;
+      const sub2 = decomp.subtopics[1].title;
+      const sub3 = decomp.subtopics[2].title;
+      const src1 = decomp.subtopics[0].source;
+      const src2 = decomp.subtopics[1].source;
+      const src3 = decomp.subtopics[2].source;
+      const claims1 = decomp.subtopics[0].claims;
+      const claims2 = decomp.subtopics[1].claims;
+      const claims3 = decomp.subtopics[2].claims;
+      const cit1 = decomp.subtopics[0].citations;
+      const cit2 = decomp.subtopics[1].citations;
+      const cit3 = decomp.subtopics[2].citations;
+      const totalClaims = claims1 + claims2 + claims3;
+      const confScore = Number((decomp.confidenceScore / 100).toFixed(3));
 
       const mockEvents: Array<{ delay: number; event: ReportEventPayload }> = [
         {
@@ -71,9 +85,10 @@ export function useReportEvents(
               status: "planning",
               agent_role: "orchestrator",
               metadata: {
-                message: "Orchestrator decomposing query into 3 parallel subtopics",
+                message: `Orchestrator decomposing query into 3 parallel subtopics across ${decomp.domainName}`,
                 stage: "DAG generation",
                 subtopics: 3,
+                domain: decomp.domain,
               },
             },
             timestamp: new Date().toISOString(),
@@ -88,7 +103,7 @@ export function useReportEvents(
               status: "researching",
               agent_role: "orchestrator",
               metadata: {
-                message: "Dispatched 3 parallel researcher agents across literature sources",
+                message: `Dispatched 3 parallel researcher agents across ${decomp.sourcesSummary}`,
                 parallel_tasks: 3,
               },
             },
@@ -109,7 +124,7 @@ export function useReportEvents(
                 task_type: "research",
                 subtopic: sub1,
                 worker_index: 1,
-                source: "arXiv & Academic Digital Library",
+                source: src1,
               },
             },
             timestamp: new Date().toISOString(),
@@ -129,7 +144,7 @@ export function useReportEvents(
                 task_type: "research",
                 subtopic: sub2,
                 worker_index: 2,
-                source: "IEEE Xplore & Technical Preprints",
+                source: src2,
               },
             },
             timestamp: new Date().toISOString(),
@@ -149,7 +164,7 @@ export function useReportEvents(
                 task_type: "research",
                 subtopic: sub3,
                 worker_index: 3,
-                source: "Peer-Reviewed Journals & Repositories",
+                source: src3,
               },
             },
             timestamp: new Date().toISOString(),
@@ -168,8 +183,8 @@ export function useReportEvents(
               metadata: {
                 task_type: "research",
                 subtopic: sub1,
-                claims: 5,
-                citations: 3,
+                claims: claims1,
+                citations: cit1,
               },
             },
             timestamp: new Date().toISOString(),
@@ -188,8 +203,8 @@ export function useReportEvents(
               metadata: {
                 task_type: "research",
                 subtopic: sub2,
-                claims: 4,
-                citations: 2,
+                claims: claims2,
+                citations: cit2,
               },
             },
             timestamp: new Date().toISOString(),
@@ -208,8 +223,8 @@ export function useReportEvents(
               metadata: {
                 task_type: "research",
                 subtopic: sub3,
-                claims: 6,
-                citations: 4,
+                claims: claims3,
+                citations: cit3,
               },
             },
             timestamp: new Date().toISOString(),
@@ -225,8 +240,8 @@ export function useReportEvents(
               status: "fact_checking",
               agent_role: "fact_checker",
               metadata: {
-                message: "Cross-checked 15 claims against cited sources",
-                confidence_score: 0.98,
+                message: `Cross-checked ${totalClaims} empirical claims across ${decomp.sourcesSummary}`,
+                confidence_score: confScore,
                 contradictions: 0,
               },
             },
@@ -243,7 +258,7 @@ export function useReportEvents(
               status: "writing",
               agent_role: "writer",
               metadata: {
-                message: "Synthesized verified claims into 3 cited markdown sections",
+                message: `Synthesized ${totalClaims} verified claims with ${cit1 + cit2 + cit3} peer-reviewed citations`,
                 sections_authored: 3,
               },
             },

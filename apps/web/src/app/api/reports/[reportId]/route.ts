@@ -24,6 +24,7 @@ export async function GET(
   }
 
   // 2. Return rich, verified academic report findings
-  const report = getScholarlyReport(reportId, "Autonomous Multi-Agent Consensus Mechanisms & Empirical Scaling Bounds in Byzantine Mesh Networks");
+  const searchParamQuery = request.nextUrl?.searchParams?.get("query") || "";
+  const report = getScholarlyReport(reportId, searchParamQuery);
   return NextResponse.json(report);
 }
