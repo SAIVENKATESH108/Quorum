@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -90,6 +90,12 @@ jobs:
 
       - name: Install Dependencies
         run: uv sync --dev
+
+      - name: Apply Database Migrations
+        run: uv run alembic -c alembic.ini upgrade head
+        env:
+          ENVIRONMENT: "test"
+          DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/quorum_test"
 
       - name: Run Ruff Lint Checks
         run: uv run ruff check .
