@@ -38,8 +38,8 @@ async def get_redis_client() -> Redis:
                 client = aioredis.from_url(
                     redis_url,
                     decode_responses=True,
-                    socket_timeout=0.1,
                     socket_connect_timeout=0.1,
+                    socket_timeout=None,
                 )
                 await asyncio.wait_for(client.ping(), timeout=0.1)
                 logger.info(f"[REDIS] Connected to Redis at {redis_url}")
@@ -76,4 +76,3 @@ async def close_redis_client() -> None:
         except Exception as exc:
             logger.warning(f"[REDIS] Error closing Redis client: {exc}")
         _redis_client = None
-
