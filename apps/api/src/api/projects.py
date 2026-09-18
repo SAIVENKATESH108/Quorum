@@ -13,7 +13,7 @@ from src.core.rate_limiter import check_report_creation_rate_limit
 from src.core.security import get_current_user
 from src.db.models import Project, Report, ReportStatus, User
 from src.db.session import async_session_maker, get_db
-from src.schemas.projects import ProjectCreate, ProjectResponse
+from src.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
 from src.schemas.reports import (
     ReportCreate,
     ReportCreateResponse,
@@ -95,6 +95,49 @@ async def list_projects(
     result = await db.execute(stmt)
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]
+
+
+@router.get(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    summary="Get single project detail",
+)
+async def get_project_detail(
+    project: Project = Depends(get_user_project),
+) -> ProjectResponse:
+    """Retrieve detail of a project owned by the authenticated user."""
+    return ProjectResponse.model_validate(project)
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    summary="Update project title",
+)
+async def update_project(
+    payload: ProjectUpdate,
+    project: Project = Depends(get_user_project),
+    db: AsyncSession = Depends(get_db),
+) -> ProjectResponse:
+    """Update title of a project owned by the authenticated user."""
+    project.title = payload.title
+    await db.commit()
+    await db.refresh(project)
+    return ProjectResponse.model_validate(project)
+
+
+@router.delete(
+    "/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a project",
+)
+async def delete_project(
+    project: Project = Depends(get_user_project),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a project and cascade delete all associated reports."""
+    await db.delete(project)
+    await db.commit()
 
 
 @router.post(

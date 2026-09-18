@@ -111,7 +111,9 @@ export default async function ReportDetailPage({ params }: PageProps) {
           <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary font-mono">
             <span>Report ID: {reportId}</span>
             <span>&bull;</span>
-            <span>Synthesized: {new Date(report.created_at).toLocaleDateString()}</span>
+            <span suppressHydrationWarning>
+              Synthesized: {report.created_at ? report.created_at.slice(0, 10) : "Recent"}
+            </span>
             <span>&bull;</span>
             <span>Multi-Agent Swarm: 3 Parallel Researchers + 1 Fact-Checker + 1 Writer ({totalClaims} Claims Verified)</span>
           </div>

@@ -34,15 +34,16 @@ interface DisplayEvent {
 
 function formatRelativeTime(dateString: string): string {
   try {
-    const elapsed = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-    if (elapsed < 3) return "Just now";
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return "Recently";
+    const elapsed = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (elapsed < 5) return "Just now";
     if (elapsed < 60) return `${elapsed}s ago`;
     const minutes = Math.floor(elapsed / 60);
     if (minutes < 60) return `${minutes}m ago`;
-    return new Date(dateString).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return d.toISOString().split("T")[0];
   } catch {
     return "Recently";
   }
@@ -249,7 +250,7 @@ export function ActivityFeed({
                     </div>
 
                     <div className="shrink-0 text-right">
-                      <span className="font-mono text-[10px] text-text-secondary">
+                      <span className="font-mono text-[10px] text-text-secondary" suppressHydrationWarning>
                         {item.timestamp}
                       </span>
                     </div>

@@ -239,18 +239,13 @@ function getStoredReports(projectId?: string): ReportSummaryResponse[] {
   }
   try {
     const raw = localStorage.getItem("quorum_client_reports");
-    let reports: ReportSummaryResponse[] = raw ? JSON.parse(raw) : [];
+    let reports: ReportSummaryResponse[] = [];
 
-    let hasChanges = false;
-    for (const sample of DEFAULT_REPORTS) {
-      if (!reports.some((r) => r.id === sample.id)) {
-        reports.push(sample);
-        hasChanges = true;
-      }
-    }
-
-    if (hasChanges || !raw) {
+    if (raw === null) {
+      reports = [...DEFAULT_REPORTS];
       localStorage.setItem("quorum_client_reports", JSON.stringify(reports));
+    } else {
+      reports = JSON.parse(raw);
     }
 
     if (projectId) {
@@ -313,6 +308,43 @@ export const apiClient = {
       };
       saveStoredProject(newProj);
       return newProj;
+    }
+  },
+
+  async updateProject(projectId: string, title: string): Promise<ProjectResponse> {
+    try {
+      return await request<ProjectResponse>(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      });
+    } catch {
+      if (typeof window !== "undefined") {
+        const current = getStoredProjects().map((p) =>
+          p.id === projectId ? { ...p, title } : p
+        );
+        localStorage.setItem("quorum_client_projects", JSON.stringify(current));
+      }
+      return {
+        id: projectId,
+        user_id: "current-user",
+        title,
+        created_at: new Date().toISOString(),
+      };
+    }
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    try {
+      await request<void>(`/api/projects/${projectId}`, { method: "DELETE" });
+    } catch {
+      // Fallback
+    } finally {
+      if (typeof window !== "undefined") {
+        const current = getStoredProjects().filter((p) => p.id !== projectId);
+        localStorage.setItem("quorum_client_projects", JSON.stringify(current));
+        const reports = getStoredReports().filter((r) => r.project_id !== projectId);
+        localStorage.setItem("quorum_client_reports", JSON.stringify(reports));
+      }
     }
   },
 

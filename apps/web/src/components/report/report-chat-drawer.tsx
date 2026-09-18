@@ -55,7 +55,7 @@ export function ReportChatDrawer({
       id: "welcome",
       sender: "swarm",
       text: `Hello! I'm your Quorum Research Swarm co-pilot for "${reportQuery}". Ask me anything grounded in the verified sections and literature citations of this report.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: "Just now",
     },
   ]);
   const [input, setInput] = useState("");

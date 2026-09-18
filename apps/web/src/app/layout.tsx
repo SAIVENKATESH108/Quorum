@@ -22,9 +22,36 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "https://quorum-research.vercel.app"
   ),
-  title: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
+  title: {
+    default: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
+    template: "%s | Quorum Research",
+  },
   description:
-    "Collaborative multi-agent intelligence platform that decomposes research queries, validates facts across verified academic DOIs and primary sources, and generates structured reports.",
+    "Collaborative multi-agent intelligence platform that decomposes research queries into dependency-governed DAGs, validates claims against peer-reviewed DOIs, and synthesizes publication-grade research papers.",
+  keywords: [
+    "multi-agent AI",
+    "autonomous research swarm",
+    "scientific evidence synthesis",
+    "peer-reviewed DOI verification",
+    "Byzantine fault tolerance",
+    "DAG consensus",
+    "ReportLab PDF compilation",
+    "academic intelligence",
+  ],
+  authors: [{ name: "V.A. Sai Venkatesh", url: "https://quorum-research.vercel.app" }],
+  creator: "V.A. Sai Venkatesh",
+  publisher: "Quorum Autonomous Systems",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   alternates: {
     canonical: "/",
   },
@@ -54,7 +81,12 @@ export const metadata: Metadata = {
     creator: "@QuorumAI",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
 };
 

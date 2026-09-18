@@ -147,12 +147,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <Badge variant={getBadgeVariant(rep.status)} dot>
                       {rep.status}
                     </Badge>
-                    <span className="flex items-center gap-1 opacity-75">
+                    <span className="flex items-center gap-1 opacity-75" suppressHydrationWarning>
                       <Clock className="h-3 w-3" aria-hidden="true" />
-                      {new Date(rep.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {rep.created_at ? rep.created_at.slice(0, 10) : "Recent"}
                     </span>
                   </div>
                 </Link>

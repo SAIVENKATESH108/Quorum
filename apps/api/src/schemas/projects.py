@@ -8,6 +8,11 @@ class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Title of the project")
 
 
+class ProjectUpdate(BaseModel):
+    """Schema for updating an existing project."""
+    title: str = Field(..., min_length=1, max_length=255, description="Updated title of the project")
+
+
 class ProjectResponse(BaseModel):
     """Schema for project response."""
     id: uuid.UUID

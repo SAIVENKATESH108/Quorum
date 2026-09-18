@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SCHOLARLY_REPORTS } from "@/lib/sample-reports-data";
+import { serverStore } from "@/lib/server-store";
 
 export async function GET(
   request: NextRequest,
@@ -12,6 +12,7 @@ export async function GET(
     try {
       const res = await fetch(`${apiUrl}/api/projects/${projectId}/reports`, {
         headers: { "Content-Type": "application/json" },
+        next: { revalidate: 15 },
       });
       if (res.ok) {
         const data = await res.json();
@@ -22,17 +23,6 @@ export async function GET(
     }
   }
 
-  const reports = Object.values(SCHOLARLY_REPORTS)
-    .filter((r) => r.project_id === projectId || !projectId)
-    .map((r) => ({
-      id: r.id,
-      project_id: r.project_id,
-      status: r.status,
-      query: r.query,
-      created_at: r.created_at,
-      completed_at: r.completed_at,
-      error_message: r.error_message,
-    }));
-
+  const reports = serverStore.getReports(projectId);
   return NextResponse.json(reports);
 }

@@ -34,13 +34,7 @@ export function ReportHeader({
 }: ReportHeaderProps) {
   const setActiveModal = useUiStore((state) => state.setActiveModal);
 
-  const formattedDate = new Date(createdAt).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = createdAt ? createdAt.slice(0, 10) : "Recent";
 
   const getStatusVariant = (
     s: ReportStatus
@@ -114,7 +108,7 @@ export function ReportHeader({
 
           <div className="flex items-center gap-2 text-xs text-text-secondary">
             <Clock className="h-3 w-3" />
-            <span>Initiated on {formattedDate}</span>
+            <span suppressHydrationWarning>Initiated on {formattedDate}</span>
           </div>
         </div>
 

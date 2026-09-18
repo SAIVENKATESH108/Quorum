@@ -7,7 +7,10 @@ import {
   Plus,
   Clock,
   ArrowUpRight,
+  Trash2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +31,24 @@ function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "r
 export default function ReportsListPage() {
   const { data: projects = [] } = useProjects();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const selectedProjectId = projects.length > 0 ? projects[0].id : undefined;
   const { data: reports = [], isLoading: isReportsLoading } = useReports(selectedProjectId);
+
+  const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this research report?")) return;
+    setDeletingId(id);
+    try {
+      await apiClient.deleteReport(id);
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const displayedReports = reports;
   const filteredReports =
@@ -112,13 +130,21 @@ export default function ReportsListPage() {
                   <Badge variant={getBadgeVariant(report.status)} dot>
                     {report.status}
                   </Badge>
-                  <span className="flex items-center gap-1 text-[11px] text-text-secondary">
-                    <Clock className="h-3 w-3" />
-                    {new Date(report.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-[11px] text-text-secondary" suppressHydrationWarning>
+                      <Clock className="h-3 w-3" />
+                      {report.created_at ? report.created_at.slice(0, 10) : "Recent"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteReport(e, report.id)}
+                      disabled={deletingId === report.id}
+                      className="p-1 text-text-secondary hover:text-danger rounded hover:bg-danger/10 transition-colors"
+                      title="Delete report"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className="text-sm font-semibold text-text-primary line-clamp-2 group-hover:text-accent transition-colors">

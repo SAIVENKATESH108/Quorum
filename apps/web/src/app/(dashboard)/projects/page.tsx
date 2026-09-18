@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Folder,
@@ -9,7 +9,10 @@ import {
   ArrowUpRight,
   FileText,
   FolderPlus,
+  Trash2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +28,22 @@ import { useUiStore } from "@/stores/uiStore";
 export default function ProjectsListPage() {
   const { data: projects = [], isLoading } = useProjects();
   const setActiveModal = useUiStore((state) => state.setActiveModal);
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Delete this research project and all associated reports?")) return;
+    setDeletingId(id);
+    try {
+      await apiClient.deleteProject(id);
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -94,12 +113,9 @@ export default function ProjectsListPage() {
                   <div className="flex h-9 w-9 items-center justify-center rounded-control bg-accent/10 text-accent">
                     <Folder className="h-5 w-5" />
                   </div>
-                  <span className="flex items-center gap-1 text-[11px] text-text-secondary">
+                  <span className="flex items-center gap-1 text-[11px] text-text-secondary" suppressHydrationWarning>
                     <Clock className="h-3 w-3" />
-                    {new Date(project.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {project.created_at ? project.created_at.slice(0, 10) : "Recent"}
                   </span>
                 </div>
                 <CardTitle className="text-base font-semibold text-text-primary group-hover:text-accent transition-colors pt-2">
@@ -122,12 +138,25 @@ export default function ProjectsListPage() {
                     <span>Workspace Hub</span>
                   </Link>
 
-                  <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                    <Link href={`/reports/new?projectId=${project.id}`}>
-                      <span>Launch Swarm</span>
-                      <ArrowUpRight className="h-3 w-3 ml-1" />
-                    </Link>
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                      <Link href={`/reports/new?projectId=${project.id}`}>
+                        <span>Launch Swarm</span>
+                        <ArrowUpRight className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleDelete(e, project.id)}
+                      disabled={deletingId === project.id}
+                      className="h-7 w-7 p-0 text-text-secondary hover:text-danger hover:bg-danger/10"
+                      title="Delete project"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

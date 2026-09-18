@@ -14,7 +14,10 @@ import {
   Plus,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +41,22 @@ function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "r
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Delete this research report?")) return;
+    setDeletingId(id);
+    try {
+      await apiClient.deleteReport(id);
+      queryClient.invalidateQueries({ queryKey: ["reports", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
   const { data: reports = [], isLoading: reportsLoading } = useReports(projectId);
@@ -88,8 +107,8 @@ export default function ProjectDetailPage() {
               <p className="text-sm text-text-secondary mt-1 flex items-center gap-2">
                 <span>Autonomous multi-agent research domain.</span>
                 {project && (
-                  <span className="text-xs text-text-secondary/80">
-                    Created on {new Date(project.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  <span className="text-xs text-text-secondary/80" suppressHydrationWarning>
+                    Created on {project.created_at ? project.created_at.slice(0, 10) : "Recent"}
                   </span>
                 )}
               </p>
@@ -232,14 +251,9 @@ export default function ProjectDetailPage() {
                     <Badge variant={getBadgeVariant(report.status)}>
                       {report.status}
                     </Badge>
-                    <span className="flex items-center gap-1 text-[11px] text-text-secondary">
+                    <span className="flex items-center gap-1 text-[11px] text-text-secondary" suppressHydrationWarning>
                       <Clock className="h-3 w-3" />
-                      {new Date(report.created_at).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {report.created_at ? report.created_at.slice(0, 10) : "Recent"}
                     </span>
                   </div>
 
@@ -255,12 +269,23 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <Button asChild variant="outline" size="sm" className="gap-1.5">
                     <Link href={`/reports/${report.id}`}>
                       <span>View Report</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </Link>
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleDeleteReport(e, report.id)}
+                    disabled={deletingId === report.id}
+                    className="h-8 w-8 p-0 text-text-secondary hover:text-danger hover:bg-danger/10"
+                    title="Delete report"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>

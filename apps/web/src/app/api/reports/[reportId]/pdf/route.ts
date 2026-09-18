@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { serverStore } from "@/lib/server-store";
 import { generateReportPdf } from "@/lib/pdf-generator";
 import { getScholarlyReport } from "@/lib/sample-reports-data";
 
@@ -37,7 +38,9 @@ export async function GET(
 
   // 2. Compile publication-grade ReportLab-matching PDF directly on Vercel
   try {
-    const report = getScholarlyReport(reportId, "Autonomous Multi-Agent Consensus Mechanisms & Empirical Scaling Bounds in Byzantine Mesh Networks");
+    const stored = serverStore.getReport(reportId);
+    const queryParam = request.nextUrl?.searchParams?.get("query") || "";
+    const report = stored || getScholarlyReport(reportId, queryParam);
 
     const pdfBuffer = generateReportPdf({
       reportTitle: report.query,
