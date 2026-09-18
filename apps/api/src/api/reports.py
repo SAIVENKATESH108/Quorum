@@ -95,20 +95,6 @@ async def get_report_detail(
     )
 
 
-@router.delete(
-    "/{report_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a report",
-)
-async def delete_report(
-    report: Report = Depends(get_user_report),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Delete a report owned by the authenticated user."""
-    await db.delete(report)
-    await db.commit()
-
-
 def _get_dynamic_report_content(query: str):
     """Generates authentic academic sections and peer-reviewed sources tailored to query domain."""
     from unittest.mock import MagicMock
@@ -176,7 +162,7 @@ def _get_dynamic_report_content(query: str):
         MagicMock(
             order_index=2,
             heading="2. Empirical Analysis & Parallel Multi-Agent Synthesis",
-            content=f"Three independent researcher agents harvested and cross-validated empirical evidence across international scientific registries and peer-reviewed journals. Quantitative evaluation demonstrates high concordance across independent datasets, identifying reproducible effect thresholds and isolating anomalous failure traces [2]."
+            content="Three independent researcher agents harvested and cross-validated empirical evidence across international scientific registries and peer-reviewed journals. Quantitative evaluation demonstrates high concordance across independent datasets, identifying reproducible effect thresholds and isolating anomalous failure traces [2]."
         ),
         MagicMock(
             order_index=3,
@@ -314,4 +300,3 @@ async def delete_report(
     await db.delete(report)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

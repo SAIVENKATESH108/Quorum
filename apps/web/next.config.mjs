@@ -5,7 +5,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' data: https://fonts.gstatic.com;
   img-src 'self' data: blob: https://img.clerk.com https://images.unsplash.com https://*.clerk.accounts.dev https://quorum-research.vercel.app;
-  connect-src 'self' http://localhost:8000 ws://localhost:8000 wss://localhost:8000 https://*.clerk.accounts.dev https://*.clerk.com https://quorum-research.vercel.app wss://*.vercel.app;
+  connect-src 'self' http://localhost:8000 ws://localhost:8000 wss://localhost:8000 https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://quorum-research.vercel.app wss://*.vercel.app;
   frame-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev;
   worker-src 'self' blob:;
   object-src 'none';

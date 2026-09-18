@@ -38,7 +38,7 @@ def main() -> None:
         f.write(pdf_bytes)
 
     size_kb = len(pdf_bytes) / 1024
-    print(f"Generated 9-Page System Documentation PDF:")
+    print("Generated 9-Page System Documentation PDF:")
     print(f"  -> Docs output:   {PDF_OUT_DOCS} ({size_kb:.1f} KB)")
     print(f"  -> Public output: {PDF_OUT_PUBLIC} ({size_kb:.1f} KB)")
 
