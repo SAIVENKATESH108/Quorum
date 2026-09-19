@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
 import { generateReportPdf } from "@/lib/pdf-generator";
-import { getScholarlyReport } from "@/lib/sample-reports-data";
 
 export async function GET(
   request: NextRequest,
@@ -31,17 +30,49 @@ export async function GET(
           },
         });
       }
+
+      return NextResponse.json(
+        {
+          error: "Publication PDF unavailable",
+          detail: await backendRes.text(),
+        },
+        { status: backendRes.status },
+      );
     } catch (err) {
-      console.warn(`[PDF Route] Backend unreachable for ${reportId}, compiling locally:`, err);
+      console.error(`[PDF Route] Backend unreachable for ${reportId}:`, err);
+      return NextResponse.json(
+        {
+          error: "Publication PDF service unavailable",
+          detail: "The Python report service could not be reached.",
+        },
+        { status: 503 },
+      );
     }
   }
 
-  // 2. Compile publication-grade ReportLab-matching PDF directly on Vercel
-  try {
-    const stored = serverStore.getReport(reportId);
-    const queryParam = request.nextUrl?.searchParams?.get("query") || "";
-    const report = stored || getScholarlyReport(reportId, queryParam);
+  // 2. Compile the PDF for a report the agent pipeline actually produced.
+  const report = serverStore.getReport(reportId);
+  if (!report) {
+    return NextResponse.json(
+      {
+        error: "Report not found",
+        detail: `No research report exists for id ${reportId}.`,
+      },
+      { status: 404 }
+    );
+  }
 
+  if (report.sections.length === 0 && report.sources.length === 0) {
+    return NextResponse.json(
+      {
+        error: "Report content is not ready",
+        detail: "The research pipeline has not published sections or sources yet.",
+      },
+      { status: 404 },
+    );
+  }
+
+  try {
     const pdfBuffer = generateReportPdf({
       reportTitle: report.query,
       sections: report.sections,

@@ -129,6 +129,10 @@ class Report(Base):
         nullable=False,
     )
     query: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_mode: Mapped[str] = mapped_column(
+        String(50), server_default="cloud", default="cloud", nullable=False
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source_type: Mapped[str] = mapped_column(String(50), default="query", nullable=True)
     source_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

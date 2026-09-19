@@ -1,11 +1,11 @@
 import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 import { ReportLiveClient } from "./report-live-client";
 import { ReportDetailResponse } from "@/lib/api-client";
-import { getScholarlyReport } from "@/lib/sample-reports-data";
-import { decomposeQueryTelemetry } from "@/lib/telemetry-engine";
+import { serverStore } from "@/lib/server-store";
 
 interface PageProps {
   params: {
@@ -13,32 +13,18 @@ interface PageProps {
   };
 }
 
-const SAMPLE_REPORTS: Record<string, { query: string; status: "complete" }> = {
-  "59d45060-3a06-46bd-8491-1dd4269e5d55": {
-    query: "Autonomous Multi-Agent Consensus Mechanisms & Empirical Scaling Bounds in Byzantine Mesh Networks",
-    status: "complete",
-  },
-  "2b267e3c-71f7-413a-ae3f-eff7aeb0e743": {
-    query: "Fault-Tolerant Consensus Bounds in Byzantine Mesh Networks",
-    status: "complete",
-  },
-  "9a7556a2-b907-4542-817c-f32137d30ca7": {
-    query: "High-Throughput DAG Architectures in Asynchronous Networks",
-    status: "complete",
-  },
-  "c18f3a92-74d1-49b8-9310-8e12b7a9501a": {
-    query: "The Neurocognitive Effects of Sleep Deprivation on Executive Function and Risk-Seeking Decision-Making",
-    status: "complete",
-  },
-};
-
-async function getReportData(reportId: string): Promise<ReportDetailResponse> {
+/**
+ * Resolves a report from the FastAPI backend, falling back to the local server
+ * store for reports created while the backend was unreachable. A missing report
+ * is reported as not-found: no synthesized placeholder report is returned.
+ */
+async function getReportData(reportId: string): Promise<ReportDetailResponse | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
   if (apiUrl && !apiUrl.includes("localhost")) {
     try {
       const res = await fetch(`${apiUrl}/api/reports/${reportId}`, {
-        next: { revalidate: 30 },
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
@@ -46,18 +32,23 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse> {
         return data;
       }
     } catch {
-      // Backend not reached, fall through to verified scholarly report
+      // Backend not reached, fall through to the local server store
     }
   }
 
-  // Pre-seeded or dynamic verified scholarly report
-  const sample = SAMPLE_REPORTS[reportId];
-  const query = sample?.query || "Autonomous Multi-Agent Consensus Mechanisms & Empirical Scaling Bounds in Byzantine Mesh Networks";
-  return getScholarlyReport(reportId, query);
+  return serverStore.getReport(reportId);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const report = await getReportData(params.reportId);
+  if (!report) {
+    return {
+      title: "Research Report Not Found — Quorum",
+      description: "The requested Quorum research report does not exist or has been deleted.",
+      robots: { index: false, follow: false },
+    };
+  }
+
   return {
     title: `${report.query} — Quorum AI Research Report`,
     description: `Verified intelligence report synthesized by autonomous researcher agents. Fact-checked against peer-reviewed academic DOIs.`,
@@ -72,8 +63,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ReportDetailPage({ params }: PageProps) {
   const { reportId } = params;
   const report = await getReportData(reportId);
-  const telemetry = decomposeQueryTelemetry(report.query);
-  const totalClaims = telemetry.subtopics.reduce((acc, s) => acc + s.claims, 0);
+
+  if (!report) {
+    notFound();
+  }
+
+  const reportStatus = report.status.replace(/_/g, " ");
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-2 sm:px-4 py-4">
@@ -95,7 +90,7 @@ export default async function ReportDetailPage({ params }: PageProps) {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Verified Synthesis &bull; {telemetry.confidenceScore}% Confidence</span>
+                <span>{reportStatus}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono bg-accent/10 text-accent border border-accent/20">
                 <ShieldCheck className="h-3.5 w-3.5" />
@@ -115,11 +110,18 @@ export default async function ReportDetailPage({ params }: PageProps) {
               Synthesized: {report.created_at ? report.created_at.slice(0, 10) : "Recent"}
             </span>
             <span>&bull;</span>
-            <span>Multi-Agent Swarm: 3 Parallel Researchers + 1 Fact-Checker + 1 Writer ({totalClaims} Claims Verified)</span>
+            <span>{report.sources.length} verified sources</span>
           </div>
         </header>
 
         {/* Structured Report Sections rendered into SSR HTML */}
+        {report.sections.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border bg-surface-subtle p-4 text-sm text-text-secondary">
+            The agent swarm has not published synthesized sections for this report yet.
+            This page refreshes automatically once the pipeline completes.
+          </p>
+        )}
+
         <div className="space-y-6 text-sm text-text-secondary leading-relaxed">
           {report.sections.map((section, idx) => (
             <section key={section.id || idx} className="space-y-2">

@@ -1,64 +1,25 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 
-// Public routes that unauthenticated users, judges, and crawlers can freely access
+// Only the landing page and Clerk flows are public. All workspace and API data
+// must be associated with an authenticated Clerk user.
 const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/api(.*)",
-  "/reports(.*)",
-  "/sources(.*)",
-  "/agents(.*)",
-  "/settings(.*)",
   "/og-image.png",
   "/og-image.jpg",
   "/favicon.ico",
 ]);
 
-const isProtectedRoute = createRouteMatcher(["/settings(.*)", "/agents(.*)"]);
-
-const DEFAULT_CLERK_PK = "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ";
-const GUEST_COOKIE_NAME = "quorum_guest_session";
-
-const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || DEFAULT_CLERK_PK;
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 export default clerkMiddleware(
   (auth, req) => {
-    // 1. Check for server-side guest judge session
-    const hasGuestCookie = req.cookies.has(GUEST_COOKIE_NAME);
-    const hasGuestParam = req.nextUrl.searchParams.get("guest") === "true";
-    const isEvaluatingDirectly =
-      req.nextUrl.pathname.startsWith("/reports") ||
-      req.nextUrl.pathname.startsWith("/projects") ||
-      req.nextUrl.pathname.startsWith("/sources");
-
-    if (hasGuestCookie || hasGuestParam || isEvaluatingDirectly) {
-      const res = NextResponse.next();
-      if (!hasGuestCookie) {
-        res.cookies.set({
-          name: GUEST_COOKIE_NAME,
-          value: `judge-${Date.now()}`,
-          maxAge: 60 * 60 * 24, // 24 hours
-          path: "/",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-        });
-      }
-      return res;
-    }
-
-    // Keep the explicit protection hook for future private dashboard routes.
-    // Agents and settings are public above, so this branch intentionally does
-    // not run for them.
-    if (isProtectedRoute(req) && !isPublicRoute(req)) {
+    if (!isPublicRoute(req)) {
       auth().protect({
         unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
       });
     }
-
-    return NextResponse.next();
   },
   {
     publishableKey,

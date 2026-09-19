@@ -80,14 +80,16 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
     creator: "@QuorumAI",
   },
+  // Branded tab icon, shortcut icon, and Apple touch icon are generated from the
+  // master brand image by `docs/generate_icons.py` into the app-router file
+  // conventions (app/favicon.ico, app/icon.png, app/apple-icon.png).
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "32x32" },
-      { url: "/quorum-logo.png", type: "image/png", sizes: "1600x1600" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
     shortcut: "/favicon.ico",
-    apple: [{ url: "/quorum-logo.png", sizes: "1600x1600", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
   },
 };
 
@@ -107,10 +109,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider
-      publishableKey={
-        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-        "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ"
-      }
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
       <html lang="en" suppressHydrationWarning>
         <body

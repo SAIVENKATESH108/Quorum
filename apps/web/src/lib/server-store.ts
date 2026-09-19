@@ -1,18 +1,16 @@
 /**
  * Quorum Dynamic Server Store
- * Provides enterprise-grade in-memory and persistent storage for user projects,
- * research reports, sections, and sources. Enables true dynamic CRUD operations
- * for live deployments and local development alike.
+ * In-memory storage backing the Next.js route handlers so project/report CRUD keeps
+ * working when the FastAPI backend is not directly reachable from the edge runtime.
+ *
+ * The store starts empty and only ever contains records created by the user
+ * through the API. No demo/seed data is injected, so deleted records stay deleted.
  */
 
-import { DEFAULT_PROJECTS, DEFAULT_REPORTS, SCHOLARLY_REPORTS, getScholarlyReport } from "./sample-reports-data";
-import { decomposeQueryTelemetry } from "./telemetry-engine";
 import type {
   ProjectResponse,
   ReportDetailResponse,
-  ReportSectionResponse,
   ReportSummaryResponse,
-  SourceResponse,
 } from "./api-client";
 
 interface StoreState {
@@ -26,25 +24,12 @@ declare global {
 }
 
 function initStore(): StoreState {
-  if (global.__quorumStore) {
-    return global.__quorumStore;
+  if (!global.__quorumStore) {
+    global.__quorumStore = {
+      projects: new Map<string, ProjectResponse>(),
+      reports: new Map<string, ReportDetailResponse>(),
+    };
   }
-
-  const projectsMap = new Map<string, ProjectResponse>();
-  for (const p of DEFAULT_PROJECTS) {
-    projectsMap.set(p.id, { ...p });
-  }
-
-  const reportsMap = new Map<string, ReportDetailResponse>();
-  for (const [id, r] of Object.entries(SCHOLARLY_REPORTS)) {
-    reportsMap.set(id, { ...r });
-  }
-
-  global.__quorumStore = {
-    projects: projectsMap,
-    reports: reportsMap,
-  };
-
   return global.__quorumStore;
 }
 
@@ -121,55 +106,40 @@ export const serverStore = {
 
   getReport(id: string): ReportDetailResponse | null {
     const store = initStore();
-    const found = store.reports.get(id);
-    if (found) return found;
-
-    // Fallback: check if known sample report
-    if (SCHOLARLY_REPORTS[id]) {
-      store.reports.set(id, SCHOLARLY_REPORTS[id]);
-      return SCHOLARLY_REPORTS[id];
-    }
-
-    return null;
+    return store.reports.get(id) || null;
   },
 
+  /**
+   * Registers a report for an existing project. The record starts in the
+   * `pending` state with no synthesized content: sections and citations are only
+   * ever produced by the multi-agent pipeline (FastAPI backend).
+   *
+   * Returns `null` when the target project does not exist so callers can respond
+   * with an honest 404 instead of inventing a project/report.
+   */
   createReport(data: {
     query: string;
     projectId?: string;
     sourceType?: string;
     sourceRef?: string;
     providerMode?: string;
-  }): ReportDetailResponse {
+  }): ReportDetailResponse | null {
     const store = initStore();
-    const reportId = crypto.randomUUID();
-    const query = data.query?.trim() || "Autonomous Scientific Investigation";
-
-    // Resolve or create project
-    let projectId = data.projectId;
-    if (!projectId || !store.projects.has(projectId)) {
-      const defaultProj = Array.from(store.projects.values())[0];
-      projectId = defaultProj ? defaultProj.id : this.createProject("Primary Research Workspace").id;
+    if (!data.projectId || !store.projects.has(data.projectId)) {
+      return null;
     }
 
-    // Synthesize domain report content
-    const scholarly = getScholarlyReport(reportId, query);
-
+    const reportId = crypto.randomUUID();
     const newReport: ReportDetailResponse = {
       id: reportId,
-      project_id: projectId,
-      status: "complete",
-      query,
+      project_id: data.projectId,
+      status: "pending",
+      query: data.query?.trim() || "Untitled Research Query",
       created_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      completed_at: null,
       error_message: null,
-      sections: scholarly.sections.map((s, idx) => ({
-        ...s,
-        id: `sec-${reportId}-${idx + 1}`,
-      })),
-      sources: scholarly.sources.map((src, idx) => ({
-        ...src,
-        id: `src-${reportId}-${idx + 1}`,
-      })),
+      sections: [],
+      sources: [],
     };
 
     store.reports.set(reportId, newReport);

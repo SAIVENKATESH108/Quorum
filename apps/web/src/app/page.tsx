@@ -37,9 +37,9 @@ export default function PublicLandingPage() {
             <a href="#agents" className="hover:text-text-primary transition-colors">
               Agent Mesh
             </a>
-            <a href="#sample-report" className="hover:text-text-primary transition-colors">
-              Live Verified Report
-            </a>
+            <Link href="/projects" className="hover:text-text-primary transition-colors">
+              Run Research
+            </Link>
             <a
               href="/Quorum_System_Documentation.pdf"
               target="_blank"
@@ -120,20 +120,14 @@ export default function PublicLandingPage() {
                 <span>9-Page System Spec (PDF)</span>
               </a>
 
-              <a
-                href="#sample-report"
+              <Link
+                href="/projects"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-text-primary hover:bg-surface-hover hover:border-accent/40 transition-all"
               >
                 <FileCheck className="h-4 w-4 text-accent" />
-                <span>Explore Live Sample Report</span>
-              </a>
-
-              <Link
-                href="/api/guest-session"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-colors"
-              >
-                <span>⚡ Hackathon Judge 1-Click Access →</span>
+                <span>Run a Research Query</span>
               </Link>
+
             </div>
 
             {/* Key Metrics Strip */}
@@ -243,7 +237,7 @@ export default function PublicLandingPage() {
           </div>
         </section>
 
-        {/* 4. Live Sample Report Preview (Judge-Friendly No-Auth Demo) */}
+        {false && (
         <section id="sample-report" className="py-20 bg-surface-subtle/40 border-y border-border/80">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -402,6 +396,7 @@ export default function PublicLandingPage() {
             </div>
           </div>
         </section>
+        )}
 
         {/* 5. Judge Evaluation Callout */}
         <section className="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">

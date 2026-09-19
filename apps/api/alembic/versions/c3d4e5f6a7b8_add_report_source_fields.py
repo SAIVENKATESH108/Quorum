@@ -20,14 +20,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add source metadata used by report ingestion and PDF generation."""
-    op.add_column(
-        "reports",
-        sa.Column("source_type", sa.String(length=50), nullable=True),
-    )
-    op.add_column(
-        "reports",
-        sa.Column("source_ref", sa.Text(), nullable=True),
-    )
+    inspector = sa.inspect(op.get_bind())
+    existing = {column["name"] for column in inspector.get_columns("reports")}
+    if "source_type" not in existing:
+        op.add_column("reports", sa.Column("source_type", sa.String(length=50), nullable=True))
+    if "source_ref" not in existing:
+        op.add_column("reports", sa.Column("source_ref", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:

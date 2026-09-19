@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ActivityFeed } from "@/components/report/activity-feed";
 import { PipelineStages } from "@/components/report/pipeline-stages";
@@ -19,6 +20,7 @@ interface ReportLiveClientProps {
 
 export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const setSelectedReportId = useUiStore((state) => state.setSelectedReportId);
 
   // Sync selected report id in ephemeral UI store
@@ -52,8 +54,9 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
       queryClient.invalidateQueries({
         queryKey: reportKeys.detail(reportId),
       });
+      router.refresh();
     }
-  }, [effectiveStatus, reportId, queryClient]);
+  }, [effectiveStatus, reportId, queryClient, router]);
 
   // Extract parallel research tasks from Zustand store for the Researching stage
   const allTasks = useAgentEventsStore((state) => state.tasks);

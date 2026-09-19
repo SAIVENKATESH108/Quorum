@@ -16,7 +16,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportStatus, TaskState } from "@/stores/agentEventsStore";
-import { getDynamicResearchWorkers } from "@/lib/telemetry-engine";
 
 export interface PipelineStagesProps {
   status: ReportStatus;
@@ -111,15 +110,12 @@ export function getStageState(
 
 export function PipelineStages({
   status,
-  query,
   researchTasks = [],
   errorMessage,
 }: PipelineStagesProps) {
   const shouldReduceMotion = useReducedMotion();
 
-  const q = query ? query.trim() : "Investigated Research Topic";
-
-  // Resolve research tasks: either from live store or dynamically decomposed from query
+  // Resolve workers only from real pipeline events.
   const displayWorkers =
     researchTasks.length > 0
       ? researchTasks.map((t, idx) => {
@@ -135,7 +131,7 @@ export function PipelineStages({
             status: t.status,
           };
         })
-      : getDynamicResearchWorkers(q, status);
+      : [];
 
   const isResearchActiveOrDone = [
     "researching",

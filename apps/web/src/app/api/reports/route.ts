@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
+import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
-export async function GET() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+export async function GET(request: NextRequest) {
+  const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
+      // Authenticated, user-scoped data must never be served from the fetch cache.
       const res = await fetch(`${apiUrl}/api/reports`, {
-        headers: { "Content-Type": "application/json" },
-        next: { revalidate: 15 },
+        headers: backendHeaders(request),
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -32,18 +34,19 @@ export async function POST(request: NextRequest) {
     const sourceRef = body.source_ref || body.sourceRef;
     const providerMode = body.provider_mode || body.providerMode || "cloud";
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-    if (apiUrl && !apiUrl.includes("localhost") && projectId) {
+    const apiUrl = backendApiUrl();
+    if (apiUrl && projectId) {
       try {
         const res = await fetch(`${apiUrl}/api/projects/${projectId}/reports`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: backendHeaders(request),
           body: JSON.stringify({
             query,
             source_type: sourceType,
             source_ref: sourceRef,
             provider_mode: providerMode,
           }),
+          cache: "no-store",
         });
         if (res.ok) {
           const data = await res.json();
@@ -61,6 +64,16 @@ export async function POST(request: NextRequest) {
       sourceRef,
       providerMode,
     });
+
+    if (!created) {
+      return NextResponse.json(
+        {
+          error: "Project not found",
+          detail: "A valid project_id is required to schedule a research report.",
+        },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json(
       {

@@ -162,6 +162,7 @@ async def create_report(
         project_id=project.id,
         query=payload.query,
         status=ReportStatus.PENDING,
+        provider_mode=payload.provider_mode or "cloud",
         source_type=payload.source_type or "query",
         source_ref=payload.source_ref,
     )

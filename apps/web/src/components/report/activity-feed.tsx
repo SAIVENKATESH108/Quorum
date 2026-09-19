@@ -13,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReportEventPayload, ReportStatus } from "@/stores/agentEventsStore";
-import { getDynamicActivityEvents } from "@/lib/telemetry-engine";
 
 interface ActivityFeedProps {
   events: ReportEventPayload[];
@@ -81,8 +80,6 @@ function getRoleBadgeVariant(roleType: DisplayEvent["roleType"]): "running" | "c
 
 export function ActivityFeed({
   events,
-  overallStatus,
-  query,
 }: ActivityFeedProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -167,9 +164,8 @@ export function ActivityFeed({
       return parsed.sort((a, b) => b.rawTime - a.rawTime);
     }
 
-    // Dynamically decomposed historical feed reflecting this specific query's research run
-    return getDynamicActivityEvents(query, overallStatus);
-  }, [events, overallStatus, query]);
+    return [];
+  }, [events]);
 
   return (
     <Card className="border border-border bg-surface shadow-xs">

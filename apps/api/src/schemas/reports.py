@@ -43,6 +43,8 @@ class ReportSummaryResponse(BaseModel):
     project_id: uuid.UUID
     status: ReportStatus
     query: str
+    provider_mode: Optional[str] = "cloud"
+    error_message: Optional[str] = None
     source_type: Optional[str] = "query"
     source_ref: Optional[str] = None
     created_at: datetime

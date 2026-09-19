@@ -1,12 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/nextjs";
 import {
   apiClient,
   ApiError,
   ProjectCreate,
   ProjectResponse,
 } from "@/lib/api-client";
-import { DEFAULT_PROJECTS } from "@/lib/sample-reports-data";
 import { useToast } from "@/components/ui/toast";
 
 export const projectKeys = {
@@ -15,20 +13,9 @@ export const projectKeys = {
 };
 
 export function useProjects() {
-  const { toast } = useToast();
-  const { isLoaded } = useAuth();
-
   return useQuery<ProjectResponse[], ApiError>({
     queryKey: projectKeys.all,
-    queryFn: async () => {
-      try {
-        const res = await apiClient.getProjects();
-        return res && res.length > 0 ? res : DEFAULT_PROJECTS;
-      } catch (err) {
-        return DEFAULT_PROJECTS;
-      }
-    },
-    initialData: DEFAULT_PROJECTS,
+    queryFn: async () => apiClient.getProjects(),
   });
 }
 

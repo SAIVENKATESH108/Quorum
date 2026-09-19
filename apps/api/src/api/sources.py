@@ -3,13 +3,14 @@ import uuid
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.security import get_current_user
-from src.db.models import AgentRun, AgentTask, Project, Report, Source, User
+from src.core.security import get_current_user_from_token, security_bearer
+from src.db.models import AgentRun, AgentTask, Project, Report, ReportSource, Source, User
 from src.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -44,21 +45,36 @@ def _categorize_domain(domain: str) -> str:
 @router.get("", response_model=List[SourceItem], summary="List all harvested research sources")
 async def list_sources(
     category: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
+    auth: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> List[SourceItem]:
     """
-    Retrieve all verified and cited sources across the current user's research reports.
-    Aggregates sources from formal source models and agent task findings.
+    Retrieve all verified and cited sources aggregated from research reports.
+
+    Authenticated callers see sources from their own reports; unauthenticated
+    (public) callers see the public evidence library, matching the publicly
+    readable report surfaces. Sources are aggregated from formal source models
+    and agent task findings.
     """
+    current_user: Optional[User] = None
+    if auth and auth.credentials:
+        current_user = await get_current_user_from_token(auth.credentials, db=db)
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     sources_map: Dict[str, SourceItem] = {}
 
-    # 1. Fetch user's reports to get scope
+    # 1. Fetch reports to get the visible scope
     stmt = (
         select(Report.id, Report.query, Project.title)
         .join(Project, Report.project_id == Project.id)
-        .where(Project.user_id == current_user.id)
     )
+    if current_user is not None:
+        stmt = stmt.where(Project.user_id == current_user.id)
     res = await db.execute(stmt)
     user_reports = {str(r[0]): {"query": r[1], "project": r[2]} for r in res.all()}
 
@@ -120,7 +136,13 @@ async def list_sources(
                     sources_map[url].confidence = float(ev.get("confidence", 0.90))
 
     # 3. Also check formal Source table
-    source_stmt = select(Source).order_by(Source.created_at.desc())
+    source_stmt = (
+        select(Source)
+        .join(ReportSource, ReportSource.source_id == Source.id)
+        .where(ReportSource.report_id.in_(report_uuids))
+        .distinct()
+        .order_by(Source.created_at.desc())
+    )
     src_res = await db.execute(source_stmt)
     for s in src_res.scalars().all():
         parsed = urlparse(s.url)
@@ -135,6 +157,8 @@ async def list_sources(
                 title=s.title or s.url,
                 domain=domain,
                 category=cat,
+                report_id=None,
+                report_title=None,
                 citation_count=1,
                 verified=True,
                 confidence=0.92,

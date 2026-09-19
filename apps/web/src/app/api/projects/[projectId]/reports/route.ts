@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
+import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { projectId: string } }
 ) {
   const { projectId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}/api/projects/${projectId}/reports`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(request.headers.get("authorization")
-            ? { authorization: request.headers.get("authorization")! }
-            : {}),
-          ...(request.headers.get("cookie")
-            ? { cookie: request.headers.get("cookie")! }
-            : {}),
-        },
-        next: { revalidate: 15 },
+        headers: backendHeaders(request),
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -41,22 +34,15 @@ export async function POST(
 ) {
   const { projectId } = params;
   const body = await request.text();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}/api/projects/${projectId}/reports`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(request.headers.get("authorization")
-            ? { authorization: request.headers.get("authorization")! }
-            : {}),
-          ...(request.headers.get("cookie")
-            ? { cookie: request.headers.get("cookie")! }
-            : {}),
-        },
+        headers: backendHeaders(request),
         body,
+        cache: "no-store",
       });
       if (res.ok) {
         return NextResponse.json(await res.json(), { status: res.status });
@@ -75,6 +61,17 @@ export async function POST(
       sourceRef: payload.source_ref,
       providerMode: payload.provider_mode,
     });
+
+    if (!report) {
+      return NextResponse.json(
+        {
+          error: "Project not found",
+          detail: `No research project exists for id ${projectId}.`,
+        },
+        { status: 404 },
+      );
+    }
+
     return NextResponse.json(
       {
         id: report.id,

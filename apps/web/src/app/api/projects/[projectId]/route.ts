@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
+import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { projectId: string } }
 ) {
   const { projectId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       const res = await fetch(`${apiUrl}/api/projects/${projectId}`, {
-        headers: { "Content-Type": "application/json" },
+        headers: backendHeaders(request),
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -42,13 +44,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-    if (apiUrl && !apiUrl.includes("localhost")) {
+    const apiUrl = backendApiUrl();
+    if (apiUrl) {
       try {
         const res = await fetch(`${apiUrl}/api/projects/${projectId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: backendHeaders(request),
           body: JSON.stringify({ title }),
+          cache: "no-store",
         });
         if (res.ok) {
           const data = await res.json();
@@ -78,20 +81,14 @@ export async function DELETE(
   { params }: { params: { projectId: string } }
 ) {
   const { projectId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       await fetch(`${apiUrl}/api/projects/${projectId}`, {
         method: "DELETE",
-        headers: {
-          ...(request.headers.get("authorization")
-            ? { authorization: request.headers.get("authorization")! }
-            : {}),
-          ...(request.headers.get("cookie")
-            ? { cookie: request.headers.get("cookie")! }
-            : {}),
-        },
+        headers: backendHeaders(request),
+        cache: "no-store",
       });
     } catch {
       // Fall through

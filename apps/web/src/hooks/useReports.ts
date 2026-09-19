@@ -8,7 +8,6 @@ import {
   ReportDetailResponse,
   ReportSummaryResponse,
 } from "@/lib/api-client";
-import { DEFAULT_REPORTS } from "@/lib/sample-reports-data";
 import { useToast } from "@/components/ui/toast";
 
 export const reportKeys = {
@@ -18,31 +17,14 @@ export const reportKeys = {
 };
 
 export function useReports(projectId?: string) {
-  const { toast } = useToast();
-  const { isLoaded } = useAuth();
-
   return useQuery<ReportSummaryResponse[], ApiError>({
     queryKey: reportKeys.list(projectId),
-    queryFn: async () => {
-      try {
-        const res = projectId
-          ? await apiClient.getProjectReports(projectId)
-          : await apiClient.getAllReports();
-        return res && res.length > 0
-          ? res
-          : projectId
-          ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
-          : DEFAULT_REPORTS;
-      } catch (err) {
-        return projectId
-          ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
-          : DEFAULT_REPORTS;
-      }
-    },
-    initialData: () =>
+    // Reports are always API-backed: an empty workspace renders the empty state
+    // rather than being backfilled with demo/seed entries.
+    queryFn: async () =>
       projectId
-        ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
-        : DEFAULT_REPORTS,
+        ? apiClient.getProjectReports(projectId)
+        : apiClient.getAllReports(),
   });
 }
 

@@ -67,64 +67,9 @@ export default function SourcesExplorerPage() {
         );
       } catch (err) {
         console.error("Failed to load sources:", err);
-        // Fallback demo sources for robust UX
-        setSources([
-          {
-            id: "src-1",
-            url: "https://arxiv.org/abs/2609.12458",
-            title: "Asynchronous Consensus Bounds in Byzantine Mesh Networks",
-            domain: "arxiv.org",
-            category: "academic",
-            report_title: "Fault-Tolerant Consensus in Distributed Networks",
-            citation_count: 4,
-            verified: true,
-            confidence: 0.96,
-          },
-          {
-            id: "src-2",
-            url: "https://doi.org/10.1145/3318464.3389700",
-            title: "Narwhal and Tusk: A DAG-based Mempool and Consensus Algorithm",
-            domain: "doi.org",
-            category: "academic",
-            report_title: "High-Throughput Blockchain Consensus Systems",
-            citation_count: 3,
-            verified: true,
-            confidence: 0.98,
-          },
-          {
-            id: "src-3",
-            url: "https://github.com/ethereum/consensus-specs",
-            title: "Ethereum Proof-of-Stake Consensus Specification & Analysis",
-            domain: "github.com",
-            category: "technical",
-            report_title: "Comparative Analysis of Decentralized Consensus Protocols",
-            citation_count: 2,
-            verified: true,
-            confidence: 0.92,
-          },
-          {
-            id: "src-4",
-            url: "https://nature.com/articles/s41586-024-07521-w",
-            title: "Scalable Multi-Agent Autonomous Systems under Partial Observability",
-            domain: "nature.com",
-            category: "academic",
-            report_title: "Future of Autonomous AI Swarms",
-            citation_count: 5,
-            verified: true,
-            confidence: 0.99,
-          },
-          {
-            id: "src-5",
-            url: "https://sec.gov/edgar/searchedgar/companysearch",
-            title: "SEC EDGAR Filings on Digital Asset Infrastructure Risks",
-            domain: "sec.gov",
-            category: "financial",
-            report_title: "Institutional Digital Asset Regulatory Frameworks",
-            citation_count: 2,
-            verified: true,
-            confidence: 0.94,
-          },
-        ]);
+        // Evidence is API-backed only: report the empty library honestly instead
+        // of substituting invented citations.
+        setSources([]);
       } finally {
         setIsLoading(false);
       }

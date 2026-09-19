@@ -1,11 +1,5 @@
 export type { ReportStatus } from "@/stores/agentEventsStore";
 import { ReportStatus } from "@/stores/agentEventsStore";
-import {
-  DEFAULT_PROJECTS,
-  DEFAULT_REPORTS,
-  getScholarlyReport,
-} from "./sample-reports-data";
-export { DEFAULT_PROJECTS, DEFAULT_REPORTS };
 
 // --- Types matching Pydantic Schemas ---
 
@@ -92,10 +86,6 @@ export class ApiError extends Error {
   }
 }
 
-export function isValidUuid(val: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-}
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
 
@@ -107,11 +97,6 @@ export function isLocalhostBlocked(): boolean {
     API_BASE_URL.includes("localhost") || API_BASE_URL.includes("127.0.0.1");
   return isHttps && isBackendLocalhost;
 }
-
-export function isMockApiMode(): boolean {
-  return isLocalhostBlocked();
-}
-
 
 // --- Auth Token Retrieval Helper ---
 
@@ -204,84 +189,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   throw new ApiError(
     503,
-    "service_fallback",
-    "API endpoint temporarily offline, utilizing verified local scholarly store."
+    "service_unavailable",
+    "The Quorum API is temporarily unreachable. Please retry in a moment."
   );
-}
-
-// --- Resilient Client-Side Fallback Store (Ensures Vercel never displays red network errors) ---
-
-function getStoredProjects(): ProjectResponse[] {
-  if (typeof window === "undefined") return DEFAULT_PROJECTS;
-  try {
-    const raw = localStorage.getItem("quorum_client_projects");
-    if (raw) return JSON.parse(raw);
-    localStorage.setItem("quorum_client_projects", JSON.stringify(DEFAULT_PROJECTS));
-    return DEFAULT_PROJECTS;
-  } catch {
-    return DEFAULT_PROJECTS;
-  }
-}
-
-function saveStoredProject(project: ProjectResponse) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getStoredProjects();
-    current.unshift(project);
-    localStorage.setItem("quorum_client_projects", JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-}
-
-function getStoredReports(projectId?: string): ReportSummaryResponse[] {
-  if (typeof window === "undefined") {
-    return projectId
-      ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
-      : DEFAULT_REPORTS;
-  }
-  try {
-    const raw = localStorage.getItem("quorum_client_reports");
-    let reports: ReportSummaryResponse[] = [];
-
-    if (raw === null) {
-      reports = [...DEFAULT_REPORTS];
-      localStorage.setItem("quorum_client_reports", JSON.stringify(reports));
-    } else {
-      reports = JSON.parse(raw);
-    }
-
-    if (projectId) {
-      return reports.filter((r) => r.project_id === projectId);
-    }
-    return reports;
-  } catch {
-    return projectId
-      ? DEFAULT_REPORTS.filter((r) => r.project_id === projectId)
-      : DEFAULT_REPORTS;
-  }
-}
-
-function saveStoredReport(report: ReportSummaryResponse) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getStoredReports();
-    current.unshift(report);
-    localStorage.setItem("quorum_client_reports", JSON.stringify(current));
-  } catch {
-    // ignore
-  }
-}
-
-export function generateDynamicReportData(reportId: string, query: string): {
-  sections: ReportSectionResponse[];
-  sources: SourceResponse[];
-} {
-  const report = getScholarlyReport(reportId, query);
-  return {
-    sections: report.sections,
-    sources: report.sources,
-  };
 }
 
 // --- Exported API Client Methods ---
@@ -289,146 +199,53 @@ export function generateDynamicReportData(reportId: string, query: string): {
 export const apiClient = {
   // Projects
   async getProjects(): Promise<ProjectResponse[]> {
-    try {
-      return await request<ProjectResponse[]>("/api/projects");
-    } catch {
-      return getStoredProjects();
-    }
+    return request<ProjectResponse[]>("/api/projects");
   },
 
   async createProject(data: ProjectCreate): Promise<ProjectResponse> {
-    try {
-      return await request<ProjectResponse>("/api/projects", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    } catch {
-      const newProj: ProjectResponse = {
-        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `proj-${Date.now()}`,
-        user_id: "current-user",
-        title: data.title,
-        created_at: new Date().toISOString(),
-      };
-      saveStoredProject(newProj);
-      return newProj;
-    }
+    return request<ProjectResponse>("/api/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async updateProject(projectId: string, title: string): Promise<ProjectResponse> {
-    try {
-      return await request<ProjectResponse>(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title }),
-      });
-    } catch {
-      if (typeof window !== "undefined") {
-        const current = getStoredProjects().map((p) =>
-          p.id === projectId ? { ...p, title } : p
-        );
-        localStorage.setItem("quorum_client_projects", JSON.stringify(current));
-      }
-      return {
-        id: projectId,
-        user_id: "current-user",
-        title,
-        created_at: new Date().toISOString(),
-      };
-    }
+    return request<ProjectResponse>(`/api/projects/${projectId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
   },
 
   async deleteProject(projectId: string): Promise<void> {
-    try {
-      await request<void>(`/api/projects/${projectId}`, { method: "DELETE" });
-    } catch {
-      // Fallback
-    } finally {
-      if (typeof window !== "undefined") {
-        const current = getStoredProjects().filter((p) => p.id !== projectId);
-        localStorage.setItem("quorum_client_projects", JSON.stringify(current));
-        const reports = getStoredReports().filter((r) => r.project_id !== projectId);
-        localStorage.setItem("quorum_client_reports", JSON.stringify(reports));
-      }
-    }
+    await request<void>(`/api/projects/${projectId}`, { method: "DELETE" });
   },
 
   // Project Reports
   async getProjectReports(projectId: string): Promise<ReportSummaryResponse[]> {
-    try {
-      return await request<ReportSummaryResponse[]>(`/api/projects/${projectId}/reports`);
-    } catch {
-      return getStoredReports(projectId);
-    }
+    return request<ReportSummaryResponse[]>(`/api/projects/${projectId}/reports`);
   },
 
   async getAllReports(): Promise<ReportSummaryResponse[]> {
-    try {
-      return await request<ReportSummaryResponse[]>("/api/reports");
-    } catch {
-      return getStoredReports();
-    }
+    return request<ReportSummaryResponse[]>("/api/reports");
   },
 
   async createReport(projectId: string, data: ReportCreate): Promise<ReportCreateResponse> {
-    try {
-      return await request<ReportCreateResponse>(`/api/projects/${projectId}/reports`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    } catch {
-      const reportId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `rep-${Date.now()}`;
-      const newReport: ReportSummaryResponse = {
-        id: reportId,
-        project_id: projectId,
-        status: "complete",
-        query: data.query,
-        created_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        error_message: null,
-      };
-      saveStoredReport(newReport);
-      return {
-        id: reportId,
-        report_id: reportId,
-        status: "complete",
-        query: data.query,
-        created_at: new Date().toISOString(),
-      };
-    }
+    // Pipeline creation is always server-authoritative: if the API cannot
+    // schedule the agent swarm we surface the failure instead of registering a
+    // placeholder report.
+    return request<ReportCreateResponse>(`/api/projects/${projectId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   // Reports
   async getReport(reportId: string): Promise<ReportDetailResponse> {
-    try {
-      return await request<ReportDetailResponse>(`/api/reports/${reportId}`);
-    } catch {
-      const all = getStoredReports();
-      const match = all.find((r) => r.id === reportId);
-      const query = match?.query || "Autonomous Intelligence Investigation";
-      const dynamicData = generateDynamicReportData(reportId, query);
-
-      return {
-        id: reportId,
-        project_id: match?.project_id || "a9d930d2-03dd-431e-9390-246925165e9a",
-        status: match?.status || "complete",
-        query: query,
-        created_at: match?.created_at || new Date().toISOString(),
-        completed_at: match?.completed_at || new Date().toISOString(),
-        error_message: null,
-        sections: dynamicData.sections,
-        sources: dynamicData.sources,
-      };
-    }
+    return request<ReportDetailResponse>(`/api/reports/${reportId}`);
   },
 
   async deleteReport(reportId: string): Promise<void> {
-    try {
-      await request<void>(`/api/reports/${reportId}`, { method: "DELETE" });
-    } catch {
-      if (typeof window !== "undefined") {
-        const current = getStoredReports().filter((r) => r.id !== reportId);
-        localStorage.setItem("quorum_client_reports", JSON.stringify(current));
-      }
-    }
+    await request<void>(`/api/reports/${reportId}`, { method: "DELETE" });
   },
 
   // Generic helper
@@ -447,24 +264,10 @@ export const apiClient = {
         body: JSON.stringify({ message }),
       });
     } catch {
-      const all = getStoredReports();
-      const match = all.find((r) => r.id === reportId);
-      const query = match?.query || "Autonomous Multi-Agent Consensus Mechanisms";
-
       return {
-        reply: `Based on verified scholarly synthesis for "${query}": The autonomous swarm investigated the foundational subtopics and confirmed that "${message}" aligns with established peer-reviewed consensus and formal verification literature [1]. Decoupling transaction dissemination from consensus ordering ensures high Byzantine resilience without throughput collapse [2].`,
-        citations: [
-          {
-            index: 1,
-            title: "Practical Byzantine Fault Tolerance and Proactive Recovery (ACM TOCS)",
-            url: "https://doi.org/10.1145/571637.571640",
-          },
-          {
-            index: 2,
-            title: "HotStuff: BFT Consensus with Linearity and Responsiveness (ACM PODC)",
-            url: "https://doi.org/10.1145/3293611.3331591",
-          },
-        ],
+        reply:
+          "The Quorum research assistant is temporarily unavailable. The verified report sections and cited sources above remain the authoritative source.",
+        citations: [],
       };
     }
   },
@@ -477,70 +280,10 @@ export const apiClient = {
       const qs = searchParams.toString();
       return await request<HarvestedSourceItem[]>(`/api/sources${qs ? `?${qs}` : ""}`);
     } catch {
-      return [
-        {
-          id: "src-demo-1",
-          url: "https://doi.org/10.1145/571637.571640",
-          title: "Practical Byzantine Fault Tolerance and Proactive Recovery (Castro & Liskov)",
-          domain: "acm.org",
-          category: "academic",
-          report_title: "Fault-Tolerant Consensus Bounds in Byzantine Mesh Networks",
-          citation_count: 5,
-          verified: true,
-          confidence: 0.99,
-        },
-        {
-          id: "src-demo-2",
-          url: "https://arxiv.org/abs/2201.05677",
-          title: "Bullshark: DAG BFT Protocols with Low Latency & High Throughput",
-          domain: "arxiv.org",
-          category: "academic",
-          report_title: "High-Throughput DAG Architectures in Asynchronous Networks",
-          citation_count: 4,
-          verified: true,
-          confidence: 0.98,
-        },
-        {
-          id: "src-demo-3",
-          url: "https://doi.org/10.1145/3293611.3331591",
-          title: "HotStuff: BFT Consensus with Linearity and Responsiveness",
-          domain: "acm.org",
-          category: "academic",
-          report_title: "Fault-Tolerant Consensus Bounds in Byzantine Mesh Networks",
-          citation_count: 8,
-          verified: true,
-          confidence: 0.98,
-        },
-        {
-          id: "src-demo-4",
-          url: "https://github.com/MystenLabs/sui",
-          title: "Narwhal and Tusk: A DAG-based Mempool and Efficient BFT Consensus",
-          domain: "github.com",
-          category: "technical",
-          report_title: "High-Throughput DAG Architectures in Asynchronous Networks",
-          citation_count: 2,
-          verified: true,
-          confidence: 0.95,
-        },
-      ];
+      // Evidence is always API-backed. An empty library is reported honestly
+      // instead of substituting invented citations.
+      return [];
     }
   },
 
-  completeMockReport(reportId: string, query?: string): void {
-    if (typeof window === "undefined") return;
-    try {
-      const current = getStoredReports();
-      const report = current.find((r) => r.id === reportId);
-      if (report) {
-        report.status = "complete";
-        report.completed_at = new Date().toISOString();
-        if (query) {
-          report.query = query;
-        }
-        localStorage.setItem("quorum_client_reports", JSON.stringify(current));
-      }
-    } catch {
-      // ignore
-    }
-  },
 };

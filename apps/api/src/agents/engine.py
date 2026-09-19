@@ -133,11 +133,7 @@ class OrchestrationEngine:
         session_factory: async_sessionmaker[AsyncSession] = async_session_maker,
         publisher: Optional[StatusPublisher] = None,
     ):
-        if provider is None:
-            from src.agents.providers import get_default_provider
-            self.provider = get_default_provider()
-        else:
-            self.provider = provider
+        self.provider = provider
         self.session_factory = session_factory
         self.publisher = publisher or default_publisher
 
@@ -156,8 +152,14 @@ class OrchestrationEngine:
             if not report:
                 raise ValueError(f"Report not found: {report_id}")
             query = report.query
+            provider_mode = getattr(report, "provider_mode", "cloud") or "cloud"
             source_type = getattr(report, "source_type", "query") or "query"
             source_ref = getattr(report, "source_ref", None)
+
+        if self.provider is None:
+            from src.agents.providers import get_default_provider
+
+            self.provider = get_default_provider(provider_mode)
 
         # Step 2: Transition status to PLANNING and emit websocket event
         await self._update_report_status(report_id, ReportStatus.PLANNING)
@@ -409,6 +411,10 @@ class OrchestrationEngine:
         """Update report status in database and broadcast via publisher."""
         async with self.session_factory() as session:
             values: Dict[str, Any] = {"status": status}
+            if error is not None:
+                values["error_message"] = error
+            elif status != ReportStatus.FAILED:
+                values["error_message"] = None
             if status in (ReportStatus.COMPLETE, ReportStatus.FAILED):
                 values["completed_at"] = datetime.now(timezone.utc)
 

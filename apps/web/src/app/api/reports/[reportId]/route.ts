@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
-import { getScholarlyReport } from "@/lib/sample-reports-data";
 
 export async function GET(
   request: NextRequest,
@@ -24,16 +23,21 @@ export async function GET(
     }
   }
 
-  // 2. Check serverStore for dynamic report
+  // 2. Check serverStore for dynamically created reports
   const stored = serverStore.getReport(reportId);
   if (stored) {
     return NextResponse.json(stored);
   }
 
-  // 3. Return rich, verified academic report findings
-  const searchParamQuery = request.nextUrl?.searchParams?.get("query") || "";
-  const report = getScholarlyReport(reportId, searchParamQuery);
-  return NextResponse.json(report);
+  // 3. A missing report is reported honestly. Synthesized placeholder content is
+  //    never generated on behalf of a report the pipeline has not produced.
+  return NextResponse.json(
+    {
+      error: "Report not found",
+      detail: `No research report exists for id ${reportId}.`,
+    },
+    { status: 404 }
+  );
 }
 
 export async function DELETE(

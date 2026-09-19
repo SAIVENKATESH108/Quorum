@@ -1,6 +1,7 @@
 import logging
 import uuid
 import os
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
@@ -9,11 +10,12 @@ from sqlalchemy.orm import selectinload
 
 from src.api.dependencies import get_user_report
 from src.core.security import get_current_user
-from src.db.models import Report, User
+from src.db.models import Project, Report, User
 from src.db.session import get_db
 from src.schemas.reports import (
     ReportDetailResponse,
     ReportSectionResponse,
+    ReportSummaryResponse,
     SourceResponse,
 )
 from src.services.pdf_generator import (
@@ -69,6 +71,29 @@ async def get_system_documentation_pdf() -> Response:
 
 
 @router.get(
+    "",
+    response_model=List[ReportSummaryResponse],
+    summary="List all reports across the current user's projects",
+)
+async def list_reports(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> List[ReportSummaryResponse]:
+    """
+    Workspace-wide report index backing the /reports dashboard page. Reports are
+    scoped to projects owned by the authenticated user.
+    """
+    stmt = (
+        select(Report)
+        .join(Project, Report.project_id == Project.id)
+        .where(Project.user_id == current_user.id)
+        .order_by(Report.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return [ReportSummaryResponse.model_validate(report) for report in result.scalars().all()]
+
+
+@router.get(
     "/{report_id}",
     response_model=ReportDetailResponse,
     summary="Get full report details",
@@ -95,89 +120,6 @@ async def get_report_detail(
     )
 
 
-def _get_dynamic_report_content(query: str):
-    """Generates authentic academic sections and peer-reviewed sources tailored to query domain."""
-    from unittest.mock import MagicMock
-    q = query.lower()
-
-    if any(k in q for k in ["sleep", "depriv", "brain", "cognitive", "neuro", "decision", "psych", "memory"]):
-        sections = [
-            MagicMock(
-                order_index=1,
-                heading="1. Executive Summary & Neurobiological Foundations",
-                content="This publication presents an autonomous literature synthesis on the neurocognitive impact of sustained wakefulness debt. Functional neuroimaging demonstrates significant regional hypometabolism across the dorsolateral prefrontal cortex (dlPFC) and ventromedial prefrontal cortex (vmPFC) after 24 hours of wakefulness [1]. Concurrently, functional connectivity between top-down prefrontal inhibitory circuits and the amygdala degrades, resulting in heightened limbic reactivity to emotional stimuli [3]."
-            ),
-            MagicMock(
-                order_index=2,
-                heading="2. Empirical Decision-Making Paradigms & Risk-Seeking Drift",
-                content="Multi-agent empirical testing across Iowa Gambling Task (IGT) and Balloon Analogue Risk Task (BART) trials indicates an asymmetric shift in risk valuation: ventral striatal activation in response to anticipated gains remains elevated, while anterior insular sensitivity to losses is blunted [4]. This neural imbalance drives higher risk-seeking behavior under uncertainty [2]."
-            ),
-            MagicMock(
-                order_index=3,
-                heading="3. Operational Countermeasures & Restorative Protocols",
-                content="Fact-checking cross-verification indicates that higher-order executive function requires consolidated slow-wave sleep (SWS) to restore prefrontal metabolic equilibrium [1]. High-consequence operational domains should enforce mandatory circadian nadir protections and secondary verification thresholds for safety-critical decisions [2]."
-            ),
-        ]
-        sources = [
-            MagicMock(title="The Cumulative Cost of Additional Wakefulness: Dose-Response Effects on Neurobehavioral Functions and Sleep Physiology (Sleep)", url="https://doi.org/10.1093/sleep/26.2.117", doi="10.1093/sleep/26.2.117"),
-            MagicMock(title="Impaired Decision Making Following 49 h of Sleep Deprivation (Journal of Sleep Research)", url="https://doi.org/10.1111/j.1365-2869.2006.00487.x", doi="10.1111/j.1365-2869.2006.00487.x"),
-            MagicMock(title="The Human Emotional Brain Without Sleep: A Prefrontal Amygdala Disconnect (Current Biology)", url="https://doi.org/10.1016/j.cub.2007.08.007", doi="10.1016/j.cub.2007.08.007"),
-            MagicMock(title="Sleep Deprivation Elevates Expectation of Gains and Attenuates Sensitivity to Losses During Risky Decision Making (Journal of Neuroscience)", url="https://doi.org/10.1523/JNEUROSCI.6335-10.2011", doi="10.1523/JNEUROSCI.6335-10.2011"),
-        ]
-        return sections, sources
-
-    if any(k in q for k in ["quantum", "lattice", "crypto", "shor", "grover", "kem"]):
-        sections = [
-            MagicMock(
-                order_index=1,
-                heading="1. Theoretical Foundations & Quantum Complexity Bounds",
-                content="This publication presents an analysis of post-quantum cryptographic primitives under Shor's and Grover's quantum complexity bounds. Classical public-key schemes face polynomial-time vulnerability upon realization of fault-tolerant quantum hardware [1]. Consequently, cryptographic frameworks necessitate migration to lattice-based and module-learning-with-errors (MLWE) standards [2]."
-            ),
-            MagicMock(
-                order_index=2,
-                heading="2. Empirical Implementation Benchmarks & Network Overhead",
-                content="Independent researcher agents evaluated key encapsulation primitives across resource-constrained edge architectures. ML-KEM (Kyber) and ML-DSA (Dilithium) exhibit orders-of-magnitude faster key generation but incur public-key and ciphertext expansion overhead [2], requiring MTU path tuning [3]."
-            ),
-            MagicMock(
-                order_index=3,
-                heading="3. Strategic Hardening & Hybrid Migration Guidelines",
-                content="Cross-verification against NIST and IEEE standards recommends dual-mode hybrid key encapsulation during migration: combining classical X25519 with post-quantum ML-KEM ensures non-regression of security proofs while guarding against harvest-now-decrypt-later attacks [1], [2]."
-            ),
-        ]
-        sources = [
-            MagicMock(title="Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer (SIAM / IEEE)", url="https://doi.org/10.1109/TIT.1997.641566", doi="10.1109/TIT.1997.641566"),
-            MagicMock(title="Module-Lattice-Based Key-Encapsulation Mechanism Standard (NIST FIPS 203)", url="https://doi.org/10.6028/NIST.FIPS.203", doi="10.6028/NIST.FIPS.203"),
-            MagicMock(title="CRYSTALS-Kyber: A CCA-Secure Module-Lattice-Based KEM (ACM CCS)", url="https://doi.org/10.1145/3243734.3243859", doi="10.1145/3243734.3243859"),
-        ]
-        return sections, sources
-
-    # General / arbitrary query
-    clean_title = query[:55].strip()
-    sections = [
-        MagicMock(
-            order_index=1,
-            heading=f"1. Executive Summary & Problem Formulation: {clean_title}",
-            content=f"This publication presents an autonomous literature synthesis investigating the theoretical foundations and operational guarantees of '{query}'. Multi-agent decomposition isolates critical variables and formalizes state validation boundaries under partial information constraints [1], establishing baseline stability across independent trial environments [2]."
-        ),
-        MagicMock(
-            order_index=2,
-            heading="2. Empirical Analysis & Parallel Multi-Agent Synthesis",
-            content="Three independent researcher agents harvested and cross-validated empirical evidence across international scientific registries and peer-reviewed journals. Quantitative evaluation demonstrates high concordance across independent datasets, identifying reproducible effect thresholds and isolating anomalous failure traces [2]."
-        ),
-        MagicMock(
-            order_index=3,
-            heading="3. Systemic Findings & Implementation Recommendations",
-            content="Synthesis of verified evidence recommends: 1) Decoupling hypothesis harvesting from final consensus review to eliminate confirmation bias; 2) Implementing automated cross-referencing against primary DOI registries prior to publication compile; and 3) Enforcing formal invariant verification on all critical state transitions [1], [3]."
-        ),
-    ]
-    sources = [
-        MagicMock(title="Mathematical and Computational Foundations of Scalable Autonomous Reasoning (Nature)", url="https://doi.org/10.1038/s41586-023-06647-8", doi="10.1038/s41586-023-06647-8"),
-        MagicMock(title="Rigorous Verification Paradigms in Complex Multi-Agent Systems (Science)", url="https://doi.org/10.1126/science.abj6987", doi="10.1126/science.abj6987"),
-        MagicMock(title="Empirical Robustness and Reproducibility in Algorithmic Evidence Synthesis (PNAS)", url="https://doi.org/10.1073/pnas.2203200119", doi="10.1073/pnas.2203200119"),
-    ]
-    return sections, sources
-
-
 @router.get(
     "/{report_id}/pdf",
     summary="Download publication-grade research paper PDF for a report",
@@ -202,44 +144,26 @@ async def get_report_pdf(
     result = await db.execute(stmt)
     report = result.scalars().first()
 
-    SAMPLE_REPORTS_MAP = {
-        uuid.UUID("59d45060-3a06-46bd-8491-1dd4269e5d55"): "Autonomous Multi-Agent Consensus Mechanisms & Empirical Scaling Bounds in Byzantine Mesh Networks",
-        uuid.UUID("2b267e3c-71f7-413a-ae3f-eff7aeb0e743"): "Fault-Tolerant Consensus Bounds in Byzantine Mesh Networks",
-        uuid.UUID("9a7556a2-b907-4542-817c-f32137d30ca7"): "High-Throughput DAG Architectures in Asynchronous Networks",
-        uuid.UUID("c18f3a92-74d1-49b8-9310-8e12b7a9501a"): "The Neurocognitive Effects of Sleep Deprivation on Executive Function and Risk-Seeking Decision-Making",
-    }
-
-    if not report and report_id in SAMPLE_REPORTS_MAP:
-        from unittest.mock import MagicMock
-        query_title = SAMPLE_REPORTS_MAP[report_id]
-        report = MagicMock()
-        report.id = report_id
-        report.query = query_title
-        report.source_type = "academic"
-        report.source_ref = None
-        dyn_secs, dyn_srcs = _get_dynamic_report_content(query_title)
-        report.sections = dyn_secs
-        report.sources = dyn_srcs
-
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
 
+    sections = list(report.sections) if report.sections else []
+    sources = list(report.sources) if report.sources else []
+
+    if not sections and not sources:
+        # Nothing has been synthesized yet: report it honestly instead of
+        # substituting invented sections or citations.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report has no synthesized content yet",
+        )
+
     try:
         source_type = getattr(report, "source_type", "academic") or "academic"
         source_ref = getattr(report, "source_ref", None)
-
-        sections = list(report.sections) if report.sections else []
-        sources = list(report.sources) if report.sources else []
-
-        if not sections or not sources:
-            dyn_secs, dyn_srcs = _get_dynamic_report_content(report.query)
-            if not sections:
-                sections = dyn_secs
-            if not sources:
-                sources = dyn_srcs
 
         pdf_bytes = compile_research_report_to_pdf(
             report_title=report.query,
