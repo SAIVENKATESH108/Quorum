@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 import { ReportLiveClient } from "./report-live-client";
 import { ReportDetailResponse } from "@/lib/api-client";
@@ -21,13 +22,18 @@ interface PageProps {
  */
 async function getReportData(reportId: string): Promise<ReportDetailResponse | null> {
   const requestHeaders = headers();
+  const { getToken } = await auth();
+  const authorization = (await getToken()) || "";
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
   if (apiUrl && !apiUrl.includes("localhost")) {
     try {
       const res = await fetch(`${apiUrl}/api/reports/${reportId}`, {
         cache: "no-store",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
+        },
       });
       if (res.ok) {
         const data: ReportDetailResponse = await res.json();
@@ -50,6 +56,7 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse | n
         {
           headers: {
             cookie: requestHeaders.get("cookie") || "",
+            ...(authorization ? { authorization: `Bearer ${authorization}` } : {}),
           },
           cache: "no-store",
         }

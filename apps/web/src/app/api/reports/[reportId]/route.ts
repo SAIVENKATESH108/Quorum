@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
+import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { reportId: string } }
 ) {
   const { reportId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
   // 1. If backend API is configured and reachable, attempt proxying
   if (apiUrl && !apiUrl.includes("localhost")) {
     try {
       const backendRes = await fetch(`${apiUrl}/api/reports/${reportId}`, {
-        headers: { "Content-Type": "application/json" },
+        headers: backendHeaders(request),
       });
       if (backendRes.ok) {
         const data = await backendRes.json();
@@ -45,12 +46,13 @@ export async function DELETE(
   { params }: { params: { reportId: string } }
 ) {
   const { reportId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
   if (apiUrl && !apiUrl.includes("localhost")) {
     try {
       await fetch(`${apiUrl}/api/reports/${reportId}`, {
         method: "DELETE",
+        headers: backendHeaders(request),
       });
     } catch {
       // Fall through

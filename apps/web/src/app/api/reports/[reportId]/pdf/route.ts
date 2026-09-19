@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverStore } from "@/lib/server-store";
 import { generateReportPdf } from "@/lib/pdf-generator";
+import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { reportId: string } }
 ) {
   const { reportId } = params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl = backendApiUrl();
 
   // 1. If backend API is configured and reachable, attempt fetching from FastAPI
   if (apiUrl && !apiUrl.includes("localhost")) {
     try {
       const backendRes = await fetch(`${apiUrl}/api/reports/${reportId}/pdf`, {
-        headers: { Accept: "application/pdf" },
+        headers: { ...backendHeaders(request), Accept: "application/pdf" },
       });
 
       if (backendRes.ok) {
