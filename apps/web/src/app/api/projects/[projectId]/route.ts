@@ -84,6 +84,14 @@ export async function DELETE(
     try {
       await fetch(`${apiUrl}/api/projects/${projectId}`, {
         method: "DELETE",
+        headers: {
+          ...(request.headers.get("authorization")
+            ? { authorization: request.headers.get("authorization")! }
+            : {}),
+          ...(request.headers.get("cookie")
+            ? { cookie: request.headers.get("cookie")! }
+            : {}),
+        },
       });
     } catch {
       // Fall through
@@ -92,7 +100,8 @@ export async function DELETE(
 
   const deleted = serverStore.deleteProject(projectId);
   if (!deleted) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    // DELETE is idempotent: the requested project is already absent.
+    return new NextResponse(null, { status: 204 });
   }
 
   return new NextResponse(null, { status: 204 });
