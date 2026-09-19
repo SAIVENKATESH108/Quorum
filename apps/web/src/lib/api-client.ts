@@ -22,6 +22,9 @@ export interface ProjectResponse {
 
 export interface ReportCreate {
   query: string;
+  source_type?: string;
+  source_ref?: string;
+  provider_mode?: string;
 }
 
 export interface ReportCreateResponse {

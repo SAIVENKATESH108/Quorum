@@ -18,7 +18,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProjects } from "@/hooks/useProjects";
 import { useReports } from "@/hooks/useReports";
 
 function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "running" {
@@ -29,13 +28,13 @@ function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "r
 }
 
 export default function ReportsListPage() {
-  const { data: projects = [] } = useProjects();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const selectedProjectId = projects.length > 0 ? projects[0].id : undefined;
-  const { data: reports = [], isLoading: isReportsLoading } = useReports(selectedProjectId);
+  // The reports page is a workspace-wide view. Filtering to the first project
+  // silently hid reports belonging to every other project.
+  const { data: reports = [], isLoading: isReportsLoading } = useReports();
 
   const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();

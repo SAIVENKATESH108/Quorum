@@ -11,7 +11,10 @@ class ReportCreate(BaseModel):
     query: str = Field(..., min_length=3, description="The research query, repo URL, or project name")
     source_type: Optional[str] = Field("query", description="'query', 'github_repo', or 'local_folder'")
     source_ref: Optional[str] = Field(None, description="GitHub repository URL or local folder path")
-    provider_mode: Optional[str] = Field("cloud", description="'cloud' or 'local' (Ollama offline)")
+    provider_mode: Optional[str] = Field(
+        "cloud",
+        description="'cloud', 'local' (Ollama offline), or 'neural_pulse' (Evorozen Neural Pulse)",
+    )
     file_tree: Optional[dict] = Field(None, description="Optional client-read local directory tree and files")
 
 

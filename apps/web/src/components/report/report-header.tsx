@@ -35,6 +35,12 @@ export function ReportHeader({
   const setActiveModal = useUiStore((state) => state.setActiveModal);
 
   const formattedDate = createdAt ? createdAt.slice(0, 10) : "Recent";
+  const isTerminal = status === "complete" || status === "failed";
+  const connectionLabel = isTerminal
+    ? "complete"
+    : connectionState === "disconnected"
+    ? "offline"
+    : connectionState;
 
   const getStatusVariant = (
     s: ReportStatus
@@ -74,7 +80,7 @@ export function ReportHeader({
             ) : (
               <WifiOff className="h-3 w-3" />
             )}
-            <span className="capitalize">{connectionState}</span>
+            <span className="capitalize">{connectionLabel}</span>
           </div>
 
           <Button

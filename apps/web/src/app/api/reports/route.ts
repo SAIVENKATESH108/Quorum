@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     const projectId = body.project_id || body.projectId;
     const sourceType = body.source_type || body.sourceType || "query";
     const sourceRef = body.source_ref || body.sourceRef;
+    const providerMode = body.provider_mode || body.providerMode || "cloud";
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
     if (apiUrl && !apiUrl.includes("localhost") && projectId) {
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
             query,
             source_type: sourceType,
             source_ref: sourceRef,
+            provider_mode: providerMode,
           }),
         });
         if (res.ok) {
@@ -57,6 +59,7 @@ export async function POST(request: NextRequest) {
       projectId,
       sourceType,
       sourceRef,
+      providerMode,
     });
 
     return NextResponse.json(

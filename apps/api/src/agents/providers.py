@@ -498,10 +498,13 @@ def get_default_provider(mode: str = "cloud") -> AIProvider:
     """
     Instantiate provider fallback chain.
     If mode is 'local' or 'offline', pins strictly to OllamaProvider (zero cloud calls).
+    If mode is 'neural_pulse', pins to Evorozen's Neural Pulse provider.
     Otherwise Priority: OpenRouter → Gemini → OpenAI → NeuralPulse → Ollama.
     """
     if mode in ("local", "offline"):
         return OllamaProvider()
+    if mode in ("neural_pulse", "neural-pulse", "evorozen"):
+        return NeuralPulseProvider()
 
     providers: list[AIProvider] = [
         OpenRouterProvider(),
@@ -511,5 +514,4 @@ def get_default_provider(mode: str = "cloud") -> AIProvider:
         OllamaProvider(),
     ]
     return ProviderFallbackChain(providers)
-
 

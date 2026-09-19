@@ -9,15 +9,14 @@ const isPublicRoute = createRouteMatcher([
   "/api(.*)",
   "/reports(.*)",
   "/sources(.*)",
+  "/agents(.*)",
+  "/settings(.*)",
   "/og-image.png",
   "/og-image.jpg",
   "/favicon.ico",
 ]);
 
-const isProtectedRoute = createRouteMatcher([
-  "/settings(.*)",
-  "/agents(.*)",
-]);
+const isProtectedRoute = createRouteMatcher(["/settings(.*)", "/agents(.*)"]);
 
 const DEFAULT_CLERK_PK = "pk_test_Zmx1ZW50LXBvcnBvaXNlLTYyLmNsZXJrLmFjY291bnRzLmRldiQ";
 const GUEST_COOKIE_NAME = "quorum_guest_session";
@@ -50,7 +49,9 @@ export default clerkMiddleware(
       return res;
     }
 
-    // 2. Only protect explicit dashboard routes if user is not authenticated and not a guest judge
+    // Keep the explicit protection hook for future private dashboard routes.
+    // Agents and settings are public above, so this branch intentionally does
+    // not run for them.
     if (isProtectedRoute(req) && !isPublicRoute(req)) {
       auth().protect({
         unauthenticatedUrl: new URL("/sign-in", req.url).toString(),

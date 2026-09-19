@@ -24,7 +24,7 @@ import { useCreateReport } from "@/hooks/useReports";
 import { useUiStore } from "@/stores/uiStore";
 
 type InputSourceType = "query" | "github_repo" | "local_folder";
-type ProviderMode = "cloud" | "local";
+type ProviderMode = "cloud" | "local" | "neural_pulse";
 
 const PROMPT_SUGGESTIONS = [
   "Fault-Tolerant Consensus in Asynchronous Networks and FLP Impossibility",
@@ -145,7 +145,6 @@ export default function NewReportPage() {
         projectId: effectiveProjectId,
         data: {
           query: targetQuery,
-          // @ts-expect-error - extended payload
           source_type: sourceType,
           source_ref: sourceRef,
           provider_mode: providerMode,
@@ -419,14 +418,14 @@ export default function NewReportPage() {
               </div>
             )}
 
-            {/* 4. AI Provider Strategy Mode (Cloud vs Local Ollama) */}
+            {/* 4. AI Provider Strategy Mode */}
             <div className="space-y-2 pt-2 border-t border-border">
               <span className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
                 <Zap className="h-3.5 w-3.5 text-accent" />
                 <span>Execution Inference Provider</span>
               </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setProviderMode("cloud")}
@@ -439,6 +438,21 @@ export default function NewReportPage() {
                   <div className="text-text-primary font-medium">Cloud Multi-Provider Swarm</div>
                   <div className="text-[10px] text-text-secondary mt-0.5">
                     OpenRouter + Gemini + OpenAI with automatic circuit-breaker fallback.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setProviderMode("neural_pulse")}
+                  className={`p-3 rounded-lg border text-left text-xs transition-all cursor-pointer ${
+                    providerMode === "neural_pulse"
+                      ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400 font-semibold ring-1 ring-violet-500"
+                      : "border-border bg-surface text-text-secondary hover:border-accent/40"
+                  }`}
+                >
+                  <div className="text-text-primary font-medium">Evorozen Neural Pulse</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">
+                    Cognitive memory provider for focused research synthesis.
                   </div>
                 </button>
 

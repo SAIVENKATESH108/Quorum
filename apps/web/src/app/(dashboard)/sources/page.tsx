@@ -50,8 +50,21 @@ export default function SourcesExplorerPage() {
     async function loadSources() {
       setIsLoading(true);
       try {
-        const data = await apiClient.get<SourceItem[]>("/api/sources");
-        setSources(data || []);
+        const data = await apiClient.getSources();
+        setSources(
+          (data || []).map((source) => ({
+            id: source.id,
+            url: source.url,
+            title: source.title,
+            domain: source.domain,
+            category: source.category as SourceItem["category"],
+            report_id: source.report_id ?? undefined,
+            report_title: source.report_title ?? undefined,
+            citation_count: source.citation_count ?? 1,
+            verified: source.verified ?? true,
+            confidence: source.confidence ?? 0.95,
+          })),
+        );
       } catch (err) {
         console.error("Failed to load sources:", err);
         // Fallback demo sources for robust UX
@@ -134,6 +147,9 @@ export default function SourcesExplorerPage() {
   const verifiedRate = sources.length > 0
     ? Math.round((sources.filter((s) => s.verified).length / sources.length) * 100)
     : 100;
+  const meanConfidence = sources.length > 0
+    ? (sources.reduce((sum, source) => sum + source.confidence, 0) / sources.length) * 100
+    : 0;
 
   const copyCitation = (item: SourceItem, format: "bibtex" | "markdown") => {
     let text = "";
@@ -254,7 +270,7 @@ export default function SourcesExplorerPage() {
               <Sparkles className="h-4 w-4 text-warning" />
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-text-primary pt-1">
-              95.8%
+              {meanConfidence.toFixed(1)}%
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 text-xs text-text-secondary">

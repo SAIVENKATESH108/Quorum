@@ -138,6 +138,7 @@ export const serverStore = {
     projectId?: string;
     sourceType?: string;
     sourceRef?: string;
+    providerMode?: string;
   }): ReportDetailResponse {
     const store = initStore();
     const reportId = crypto.randomUUID();
