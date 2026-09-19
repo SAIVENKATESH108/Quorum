@@ -83,10 +83,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/quorum-logo.png", type: "image/png", sizes: "1600x1600" },
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
     shortcut: "/favicon.ico",
-    apple: "/apple-icon.png",
+    apple: [{ url: "/quorum-logo.png", sizes: "1600x1600", type: "image/png" }],
   },
 };
 
@@ -126,4 +127,3 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
-

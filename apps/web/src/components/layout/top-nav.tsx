@@ -2,8 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Layers, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,15 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
             className="flex items-center gap-2.5 rounded-control font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Quorum home"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-control bg-accent text-white shadow-sm shadow-accent/30">
-              <Layers className="h-4 w-4" aria-hidden="true" />
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-control bg-white shadow-sm shadow-accent/30">
+              <Image
+                src="/quorum-logo.png"
+                alt=""
+                aria-hidden="true"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-lg font-bold tracking-tight text-text-primary">
