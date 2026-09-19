@@ -2,6 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 import { ReportLiveClient } from "./report-live-client";
 import { ReportDetailResponse } from "@/lib/api-client";
@@ -19,6 +20,7 @@ interface PageProps {
  * is reported as not-found: no synthesized placeholder report is returned.
  */
 async function getReportData(reportId: string): Promise<ReportDetailResponse | null> {
+  const requestHeaders = headers();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 
   if (apiUrl && !apiUrl.includes("localhost")) {
@@ -34,6 +36,30 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse | n
     } catch {
       // Backend not reached, fall through to the local server store
     }
+  }
+
+  // The deployed Next API proxy may have access to the configured backend even
+  // when NEXT_PUBLIC_API_URL is unset or points at localhost. Use the same
+  // request path as the browser, forwarding the Clerk cookie for ownership.
+  try {
+    const host = requestHeaders.get("host");
+    const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+    if (host) {
+      const proxyResponse = await fetch(
+        `${protocol}://${host}/api/reports/${reportId}`,
+        {
+          headers: {
+            cookie: requestHeaders.get("cookie") || "",
+          },
+          cache: "no-store",
+        }
+      );
+      if (proxyResponse.ok) {
+        return (await proxyResponse.json()) as ReportDetailResponse;
+      }
+    }
+  } catch {
+    // Fall through to the local store for explicitly local development.
   }
 
   return serverStore.getReport(reportId);
