@@ -12,6 +12,22 @@ import {
 const TERMINAL_STATUSES: ReportStatus[] = ["complete", "failed"];
 const EMPTY_EVENTS: ReportEventPayload[] = [];
 
+function resolveWebSocketBaseUrl(): string | null {
+  const configuredWsUrl = process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "");
+  const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (configuredWsUrl && (!isProduction || !configuredWsUrl.includes("localhost"))) {
+    return configuredWsUrl;
+  }
+
+  if (configuredApiUrl && !configuredApiUrl.includes("localhost")) {
+    return `${configuredApiUrl.replace(/^http/, "ws")}/ws`;
+  }
+
+  return isProduction ? null : "ws://localhost:8000/ws";
+}
+
 interface UseReportEventsOptions {
   status?: ReportStatus;
   enabled?: boolean;
@@ -45,9 +61,14 @@ export function useReportEvents(
     async function connect() {
       if (!reportId) return;
 
-      const wsBase =
-        process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "") ||
-        "ws://localhost:8000/ws";
+      const wsBase = resolveWebSocketBaseUrl();
+      if (!wsBase) {
+        console.error(
+          "[WS] Production WebSocket is not configured. Set NEXT_PUBLIC_WS_URL to the deployed wss:// API endpoint."
+        );
+        setConnectionStatus(reportId, "disconnected");
+        return;
+      }
       const token = await getAuthToken();
       const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
       const wsUrl = `${wsBase}/reports/${reportId}${tokenQuery}`;
