@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/components/auth-provider";
 import {
   apiClient,
   ApiError,
@@ -30,7 +30,7 @@ export function useReports(projectId?: string) {
 
 export function useReport(reportId: string | null) {
   const { toast } = useToast();
-  const { isLoaded } = useAuth();
+  const { loading } = useAuth();
 
   return useQuery<ReportDetailResponse, ApiError>({
     queryKey: reportKeys.detail(reportId || ""),
@@ -49,7 +49,7 @@ export function useReport(reportId: string | null) {
         throw err;
       }
     },
-    enabled: isLoaded && !!reportId,
+    enabled: !loading && !!reportId,
   });
 }
 

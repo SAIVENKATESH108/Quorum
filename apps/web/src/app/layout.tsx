@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { TanStackQueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
-import { AuthSync } from "@/components/auth-sync";
+import { AuthProvider } from "@/components/auth-provider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -108,14 +107,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-    >
+    <AuthProvider>
       <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-bg text-text-primary antialiased selection:bg-accent/20 selection:text-accent`}
         >
-          <AuthSync />
           <TanStackQueryProvider>
             <ThemeProvider>
               <ToastProvider>{children}</ToastProvider>
@@ -123,6 +119,6 @@ export default function RootLayout({
           </TanStackQueryProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }

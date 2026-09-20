@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Metadata } from "next";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { ClerkSignInCard } from "./clerk-sign-in";
+import { AuthForm } from "@/components/auth-form";
 
 export const metadata: Metadata = {
   title: "Sign In — Quorum AI Intelligence Platform",
@@ -37,13 +37,10 @@ export default function SignInPage() {
           </p>
         </header>
 
-        {/* Clerk Sign In Form (Client Component) */}
-        <div className="flex justify-center">
-          <ClerkSignInCard />
-        </div>
+        <div className="flex justify-center"><AuthForm mode="login" /></div>
 
         <footer className="text-center text-[11px] text-text-secondary">
-          <span>Protected by Quorum Enterprise Security &amp; Clerk Auth</span>
+          <span>Protected by Quorum database authentication</span>
         </footer>
       </div>
     </main>

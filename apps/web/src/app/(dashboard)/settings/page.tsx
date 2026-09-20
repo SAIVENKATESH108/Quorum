@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/components/auth-provider";
 import {
   CheckCircle2,
   Cpu,
@@ -33,7 +33,7 @@ interface ProviderStatus {
 }
 
 export default function WorkspaceSettingsPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   // Research Swarm Configuration State
@@ -332,10 +332,10 @@ export default function WorkspaceSettingsPage() {
             <div className="rounded-control bg-surface-subtle p-3 space-y-1">
               <span className="text-[11px] text-text-secondary uppercase font-semibold">User Identity</span>
               <p className="font-medium text-text-primary">
-                {user?.primaryEmailAddress?.emailAddress || "Analyst Session"}
+                {user?.email || "Analyst Session"}
               </p>
               <p className="text-[11px] text-text-secondary font-mono">
-                ID: {user?.id || "clerk_authenticated"}
+                ID: {user?.id || "authenticated"} · Role: {user?.role || "member"}
               </p>
             </div>
 

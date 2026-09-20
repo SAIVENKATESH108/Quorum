@@ -33,6 +33,25 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     if not token:
         return None
 
+    # Native Quorum session tokens are signed with the server auth secret.
+    try:
+        payload = jwt.decode(
+            token,
+            settings.AUTH_SECRET_KEY or "local-only-change-this-auth-secret",
+            algorithms=["HS256"],
+        )
+        user_id = uuid.UUID(str(payload["sub"]))
+        session = db or async_session_maker()
+        close_session = db is None
+        try:
+            result = await session.execute(select(User).where(User.id == user_id))
+            return result.scalars().first()
+        finally:
+            if close_session:
+                await session.close()
+    except (jwt.PyJWTError, KeyError, ValueError):
+        pass
+
     # Handle direct UUID test tokens (e.g., Bearer <uuid>)
     try:
         user_uuid = uuid.UUID(token)

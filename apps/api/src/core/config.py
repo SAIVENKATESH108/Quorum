@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     DATABASE_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
+    AUTH_SECRET_KEY: Optional[str] = None
+    AUTH_SESSION_HOURS: int = 24
+    ADMIN_EMAILS: Union[List[str], str] = []
 
     ANTHROPIC_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
@@ -45,6 +48,13 @@ class Settings(BaseSettings):
         elif isinstance(v, (list, str)):
             return v
         return ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"]
+
+    @field_validator("ADMIN_EMAILS", mode="before")
+    @classmethod
+    def assemble_admin_emails(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            return [item.strip().lower() for item in v.split(",") if item.strip()]
+        return [item.lower() for item in v]
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -163,7 +163,7 @@ Copy the template `.env.example` to create root and app-specific configuration:
 ```bash
 cp .env.example .env
 ```
-Fill in your provider API keys and Clerk credentials:
+Fill in your provider API keys and native database-auth settings:
 ```ini
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/quorum
 REDIS_URL=redis://localhost:6379/0
@@ -172,8 +172,8 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 OPENAI_API_KEY=your_openai_api_key
 NEURAL_PULSE_API_KEY=your_neural_pulse_api_key
 
-CLERK_SECRET_KEY=your_clerk_secret_key
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+AUTH_SECRET_KEY=replace_with_a_long_random_server_secret
+ADMIN_EMAILS=admin@example.com
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ```

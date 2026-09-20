@@ -73,7 +73,7 @@ async def list_sources(
         select(Report.id, Report.query, Project.title)
         .join(Project, Report.project_id == Project.id)
     )
-    if current_user is not None:
+    if current_user is not None and current_user.role != "admin":
         stmt = stmt.where(Project.user_id == current_user.id)
     res = await db.execute(stmt)
     user_reports = {str(r[0]): {"query": r[1], "project": r[2]} for r in res.all()}

@@ -51,6 +51,11 @@ class AgentTaskStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    MEMBER = "member"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -61,6 +66,13 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default=UserRole.MEMBER.value,
+        server_default=UserRole.MEMBER.value,
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

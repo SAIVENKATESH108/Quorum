@@ -1,30 +1,18 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
 
-// Only the landing page and Clerk flows are public. All workspace and API data
+// Only the landing page and native auth flows are public. All workspace and API data
 // must be associated with an authenticated Clerk user.
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/og-image.png",
-  "/og-image.jpg",
-  "/favicon.ico",
-]);
+const isPublicPath = (pathname: string) =>
+  pathname === "/" || pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") ||
+  pathname.startsWith("/api/auth") || pathname === "/favicon.ico" || pathname.startsWith("/_next/");
 
-const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-export default clerkMiddleware(
-  (auth, req) => {
-    if (!isPublicRoute(req)) {
-      auth().protect({
-        unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
-      });
-    }
-  },
-  {
-    publishableKey,
+export default function middleware(request: NextRequest) {
+  if (isPublicPath(request.nextUrl.pathname)) return NextResponse.next();
+  if (!request.cookies.has("quorum_session")) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
   }
-);
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

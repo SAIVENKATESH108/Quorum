@@ -31,7 +31,7 @@ async def get_user_project(
             detail="Project not found",
         )
 
-    if project.user_id != current_user.id:
+    if current_user.role != "admin" and project.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: you do not own this project",
@@ -81,7 +81,12 @@ async def get_user_report(
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        if report.project and report.project.user_id and report.project.user_id != current_user.id:
+        if (
+            current_user.role != "admin"
+            and report.project
+            and report.project.user_id
+            and report.project.user_id != current_user.id
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: you do not own this report",

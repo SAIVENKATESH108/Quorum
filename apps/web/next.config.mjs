@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const cspHeader = `
   default-src 'self';
-  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com;
+  script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com;
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' data: https://fonts.gstatic.com;
-  img-src 'self' data: blob: https://img.clerk.com https://images.unsplash.com https://*.clerk.accounts.dev https://quorum-research.vercel.app;
-  connect-src 'self' http://localhost:8000 ws://localhost:8000 wss://localhost:8000 https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://quorum-research.vercel.app wss://*.vercel.app;
-  frame-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev;
+  img-src 'self' data: blob: https://images.unsplash.com https://quorum-research.vercel.app;
+  connect-src 'self' http://localhost:8000 ws://localhost:8000 wss://localhost:8000 https://quorum-research.vercel.app wss://*.vercel.app;
+  frame-src 'self' https://challenges.cloudflare.com;
   worker-src 'self' blob:;
   object-src 'none';
   base-uri 'self';

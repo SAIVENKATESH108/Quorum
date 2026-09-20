@@ -118,24 +118,7 @@ export async function getAuthToken(): Promise<string | null> {
   }
 
   if (typeof window !== "undefined") {
-    // 1. Try Clerk session token if available on window
-    try {
-      const win = window as unknown as {
-        Clerk?: {
-          loaded?: boolean;
-          load?: () => Promise<void>;
-          session?: { getToken: () => Promise<string | null> };
-        };
-      };
-      if (win.Clerk?.session) {
-        const clerkToken = await win.Clerk.session.getToken();
-        if (clerkToken) return clerkToken;
-      }
-    } catch {
-      // ignore
-    }
-
-    // 2. Try localStorage token
+    // Legacy local token support for local development only.
     const localToken = localStorage.getItem("quorum-auth-token");
     if (localToken) return localToken;
   }
@@ -160,24 +143,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...options.headers,
   };
 
-  // 1. If backend API is configured and not blocked by HTTPS/localhost, attempt remote backend
-  if (!isLocalhostBlocked()) {
+  // 1. Use same-origin proxies first so the HTTP-only session cookie is forwarded.
+  if (typeof window !== "undefined" && path.startsWith("/api/")) {
     try {
-      const url = `${API_BASE_URL}${path}`;
-      const res = await fetch(url, { ...options, headers });
+      const res = await fetch(path, { ...options, headers });
       if (res.ok) {
         if (res.status === 204) return {} as T;
         return await res.json();
       }
     } catch {
-      // Backend not reached, fall through to relative Next.js route
+      // Try the direct backend below for local development.
     }
   }
 
-  // 2. If in browser and path starts with /api/, fetch Next.js serverless route on same origin
-  if (typeof window !== "undefined" && path.startsWith("/api/")) {
+  // 2. Direct backend access remains useful for local development.
+  if (!isLocalhostBlocked()) {
     try {
-      const res = await fetch(path, { ...options, headers });
+      const url = `${API_BASE_URL}${path}`;
+      const res = await fetch(url, { ...options, headers });
       if (res.ok) {
         if (res.status === 204) return {} as T;
         return await res.json();

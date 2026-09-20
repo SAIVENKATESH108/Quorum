@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { SignUp } from "@clerk/nextjs";
+import { AuthForm } from "@/components/auth-form";
 import { ArrowLeft, Sparkles } from "lucide-react";
 
 export default function SignUpPage() {
@@ -33,39 +33,7 @@ export default function SignUpPage() {
           </p>
         </div>
 
-        {/* Clerk Prebuilt SignUp Component */}
-        <div className="flex justify-center">
-          <SignUp
-            path="/sign-up"
-            routing="path"
-            signInUrl="/sign-in"
-            fallbackRedirectUrl="/"
-            appearance={{
-              variables: {
-                colorPrimary: "#6366f1",
-                colorBackground: "#14141F",
-                colorText: "#F1EFE8",
-                colorTextSecondary: "#9E9EA0",
-                colorInputBackground: "#1D1D2C",
-                colorInputText: "#F1EFE8",
-                borderRadius: "0.5rem",
-              },
-              elements: {
-                card: "border border-border bg-surface shadow-xl rounded-card",
-                headerTitle: "text-text-primary font-semibold text-lg",
-                headerSubtitle: "text-text-secondary text-xs",
-                formButtonPrimary:
-                  "bg-accent hover:bg-accent/90 text-accent-foreground font-medium text-xs py-2.5 rounded-control shadow-xs transition-colors",
-                formFieldLabel: "text-text-secondary text-xs font-medium",
-                formFieldInput:
-                  "border-border bg-surface text-text-primary rounded-control text-xs py-2 px-3 focus:ring-2 focus:ring-accent/20 focus:border-accent",
-                footerActionLink: "text-accent hover:underline text-xs font-medium",
-                identityPreviewText: "text-text-primary text-xs",
-                identityPreviewEditButton: "text-accent text-xs",
-              },
-            }}
-          />
-        </div>
+        <div className="flex justify-center"><AuthForm mode="register" /></div>
       </div>
     </main>
   );

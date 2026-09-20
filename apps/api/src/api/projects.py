@@ -87,11 +87,9 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
 ) -> List[ProjectResponse]:
     """Retrieve all projects belonging to the authenticated user."""
-    stmt = (
-        select(Project)
-        .where(Project.user_id == current_user.id)
-        .order_by(Project.created_at.desc())
-    )
+    stmt = select(Project).order_by(Project.created_at.desc())
+    if current_user.role != "admin":
+        stmt = stmt.where(Project.user_id == current_user.id)
     result = await db.execute(stmt)
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]

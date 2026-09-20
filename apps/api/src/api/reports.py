@@ -83,12 +83,9 @@ async def list_reports(
     Workspace-wide report index backing the /reports dashboard page. Reports are
     scoped to projects owned by the authenticated user.
     """
-    stmt = (
-        select(Report)
-        .join(Project, Report.project_id == Project.id)
-        .where(Project.user_id == current_user.id)
-        .order_by(Report.created_at.desc())
-    )
+    stmt = select(Report).join(Project, Report.project_id == Project.id).order_by(Report.created_at.desc())
+    if current_user.role != "admin":
+        stmt = stmt.where(Project.user_id == current_user.id)
     result = await db.execute(stmt)
     return [ReportSummaryResponse.model_validate(report) for report in result.scalars().all()]
 
@@ -215,7 +212,7 @@ async def delete_report(
             detail="Report not found",
         )
 
-    if not report.project or report.project.user_id != current_user.id:
+    if current_user.role != "admin" and (not report.project or report.project.user_id != current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: you do not own this report",

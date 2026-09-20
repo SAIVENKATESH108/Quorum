@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { useAuth } from "@/components/auth-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ interface TopNavProps {
 
 export function TopNav({ onOpenMobileMenu }: TopNavProps) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   const navLinks = [
     { href: "/projects", label: "Projects" },
@@ -89,21 +90,22 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
           })}
         </nav>
 
-        {/* Right: Theme Toggle + Clerk User Authentication */}
+        {/* Right: Theme Toggle + native session authentication */}
         <div className="flex items-center gap-2.5">
           <ThemeToggle />
 
-          <SignedOut>
+          {!user ? (
             <Link
               href="/sign-in"
               className="rounded-control px-3 py-1.5 text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
             >
               Sign In
             </Link>
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
+          ) : (
+            <button type="button" onClick={() => void logout()} className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground">
+              {user.name || user.email.split("@")[0]}
+            </button>
+          )}
         </div>
       </div>
     </header>
