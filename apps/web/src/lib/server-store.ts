@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 
 import type {
+  HarvestedSourceItem,
   ProjectResponse,
   ReportDetailResponse,
   ReportSummaryResponse,
@@ -204,5 +205,58 @@ export const serverStore = {
       saveStore(store);
     }
     return existed;
+  },
+
+  // --- Sources Aggregation ---
+  getSources(category?: string): HarvestedSourceItem[] {
+    const store = initStore();
+    const sourceMap = new Map<string, HarvestedSourceItem>();
+
+    for (const report of Array.from(store.reports.values())) {
+      for (const s of report.sources || []) {
+        if (!s.url) continue;
+        const url = s.url.trim();
+        let domain = "web";
+        try {
+          domain = new URL(url).hostname;
+        } catch {
+          domain = "web";
+        }
+
+        let cat = "general";
+        const domainLower = (domain + url).toLowerCase();
+        if (/arxiv|nature|ieee|science|doi\.org|acm\.org|biorxiv/.test(domainLower)) {
+          cat = "academic";
+        } else if (/github|gitlab|huggingface|docs\.|dev\./.test(domainLower)) {
+          cat = "technical";
+        } else if (/sec\.gov|bloomberg|reuters|wsj|ft\.com|federalreserve/.test(domainLower)) {
+          cat = "financial";
+        }
+
+        if (category && category !== "all" && cat !== category) {
+          continue;
+        }
+
+        if (sourceMap.has(url)) {
+          const existing = sourceMap.get(url)!;
+          existing.citation_count = (existing.citation_count || 1) + 1;
+        } else {
+          sourceMap.set(url, {
+            id: s.id || crypto.randomUUID(),
+            url,
+            title: s.title || url,
+            domain,
+            category: cat,
+            report_id: report.id,
+            report_title: report.query,
+            citation_count: 1,
+            verified: true,
+            confidence: 0.95,
+          });
+        }
+      }
+    }
+
+    return Array.from(sourceMap.values());
   },
 };

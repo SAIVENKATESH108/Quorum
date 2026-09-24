@@ -18,13 +18,32 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useReports } from "@/hooks/useReports";
+import { reportKeys, useReports } from "@/hooks/useReports";
 
 function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "running" {
-  if (status === "complete") return "complete";
-  if (status === "failed") return "failed";
-  if (status === "pending") return "pending";
+  const s = status?.toLowerCase() || "";
+  if (s === "complete" || s === "completed" || s === "succeeded") return "complete";
+  if (s === "failed") return "failed";
+  if (s === "pending") return "pending";
   return "running";
+}
+
+function matchesStatusFilter(status: string, filter: string): boolean {
+  if (filter === "all") return true;
+  const s = status?.toLowerCase() || "";
+  if (filter === "complete") {
+    return s === "complete" || s === "completed" || s === "succeeded";
+  }
+  if (filter === "researching") {
+    return s === "researching" || s === "fact_checking" || s === "writing" || s === "running";
+  }
+  if (filter === "planning") {
+    return s === "planning" || s === "queued";
+  }
+  if (filter === "pending") {
+    return s === "pending";
+  }
+  return s === filter;
 }
 
 export default function ReportsListPage() {
@@ -32,8 +51,7 @@ export default function ReportsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // The reports page is a workspace-wide view. Filtering to the first project
-  // silently hid reports belonging to every other project.
+  // The reports page is a workspace-wide view.
   const { data: reports = [], isLoading: isReportsLoading } = useReports();
 
   const handleDeleteReport = async (e: React.MouseEvent, id: string) => {
@@ -43,17 +61,16 @@ export default function ReportsListPage() {
     setDeletingId(id);
     try {
       await apiClient.deleteReport(id);
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: reportKeys.all });
     } finally {
       setDeletingId(null);
     }
   };
 
   const displayedReports = reports;
-  const filteredReports =
-    statusFilter === "all"
-      ? displayedReports
-      : displayedReports.filter((r) => r.status === statusFilter);
+  const filteredReports = displayedReports.filter((r) =>
+    matchesStatusFilter(r.status, statusFilter)
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -80,20 +97,34 @@ export default function ReportsListPage() {
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {["all", "complete", "researching", "planning", "pending"].map((status) => (
-          <button
-            key={status}
-            type="button"
-            onClick={() => setStatusFilter(status)}
-            className={`rounded-control px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-              statusFilter === status
-                ? "bg-accent text-accent-foreground font-semibold"
-                : "border border-border bg-surface text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            {status}
-          </button>
-        ))}
+        {["all", "complete", "researching", "planning", "pending"].map((status) => {
+          const count = status === "all"
+            ? reports.length
+            : reports.filter((r) => matchesStatusFilter(r.status, status)).length;
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+              className={`inline-flex items-center gap-2 rounded-control px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                statusFilter === status
+                  ? "bg-accent text-accent-foreground font-semibold shadow-xs"
+                  : "border border-border bg-surface text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              <span>{status}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
+                  statusFilter === status
+                    ? "bg-black/15 dark:bg-white/20 text-accent-foreground"
+                    : "bg-surface-subtle text-text-secondary"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Reports Grid */}

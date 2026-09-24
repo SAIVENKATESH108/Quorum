@@ -12,8 +12,10 @@ import { useToast } from "@/components/ui/toast";
 
 export const reportKeys = {
   all: ["reports"] as const,
-  list: (projectId?: string) => ["projects", projectId, "reports"] as const,
-  detail: (reportId: string) => ["reports", reportId] as const,
+  lists: () => ["reports", "list"] as const,
+  list: (projectId?: string) => ["reports", "list", projectId ?? "all"] as const,
+  details: () => ["reports", "detail"] as const,
+  detail: (reportId: string) => ["reports", "detail", reportId] as const,
 };
 
 export function useReports(projectId?: string) {
@@ -64,13 +66,10 @@ export function useCreateReport(defaultProjectId?: string) {
   >({
     mutationFn: ({ projectId: pid, data }) => apiClient.createReport(pid, data),
     onSuccess: (newReport, variables) => {
-      // Invalidate project reports query cache
-      const targetProjectId = variables.projectId || defaultProjectId;
-      if (targetProjectId) {
-        queryClient.invalidateQueries({
-          queryKey: reportKeys.list(targetProjectId),
-        });
-      }
+      // Invalidate all report lists and caches (sidebar and list page)
+      queryClient.invalidateQueries({
+        queryKey: reportKeys.all,
+      });
       toast({
         title: "Report Pipeline Initiated",
         description: `Autonomous agent swarm scheduled for "${newReport.query}". Real-time updates live on WebSocket.`,
@@ -94,13 +93,8 @@ export function useDeleteReport() {
   return useMutation<void, ApiError, { reportId: string; projectId?: string }>({
     mutationFn: ({ reportId }) => apiClient.deleteReport(reportId),
     onSuccess: (_, variables) => {
-      if (variables.projectId) {
-        queryClient.invalidateQueries({
-          queryKey: reportKeys.list(variables.projectId),
-        });
-      }
       queryClient.invalidateQueries({
-        queryKey: reportKeys.detail(variables.reportId),
+        queryKey: reportKeys.all,
       });
       toast({
         title: "Report Deleted",

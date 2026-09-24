@@ -244,6 +244,7 @@ export default function SourcesExplorerPage() {
             { id: "academic", label: "Academic & arXiv" },
             { id: "technical", label: "Tech & GitHub" },
             { id: "financial", label: "Financial / Regulatory" },
+            { id: "general", label: "General & Web" },
           ].map((cat) => (
             <button
               key={cat.id}
