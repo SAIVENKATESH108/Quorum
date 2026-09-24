@@ -7,6 +7,9 @@
  * through the API. No demo/seed data is injected, so deleted records stay deleted.
  */
 
+import fs from "fs";
+import path from "path";
+
 import type {
   ProjectResponse,
   ReportDetailResponse,
@@ -23,11 +26,55 @@ declare global {
   var __quorumStore: StoreState | undefined;
 }
 
+function getStorageFilePath(): string {
+  if (process.env.QUORUM_DATA_FILE) {
+    return process.env.QUORUM_DATA_FILE;
+  }
+  return path.join(process.cwd(), ".quorum-data.json");
+}
+
+function saveStore(store: StoreState): void {
+  try {
+    const filePath = getStorageFilePath();
+    const data = {
+      projects: Array.from(store.projects.values()),
+      reports: Array.from(store.reports.values()),
+    };
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    // Non-fatal if filesystem is read-only
+    console.warn("[Quorum Store] Warning: Failed to persist store to disk:", err);
+  }
+}
+
 function initStore(): StoreState {
   if (!global.__quorumStore) {
+    const projects = new Map<string, ProjectResponse>();
+    const reports = new Map<string, ReportDetailResponse>();
+
+    try {
+      const filePath = getStorageFilePath();
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.projects)) {
+          for (const p of parsed.projects) {
+            if (p && p.id) projects.set(p.id, p);
+          }
+        }
+        if (Array.isArray(parsed.reports)) {
+          for (const r of parsed.reports) {
+            if (r && r.id) reports.set(r.id, r);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[Quorum Store] Warning: Failed to read persisted store from disk:", err);
+    }
+
     global.__quorumStore = {
-      projects: new Map<string, ProjectResponse>(),
-      reports: new Map<string, ReportDetailResponse>(),
+      projects,
+      reports,
     };
   }
   return global.__quorumStore;
@@ -56,6 +103,7 @@ export const serverStore = {
       created_at: new Date().toISOString(),
     };
     store.projects.set(newProject.id, newProject);
+    saveStore(store);
     return newProject;
   },
 
@@ -65,6 +113,7 @@ export const serverStore = {
     if (!existing) return null;
     existing.title = title.trim() || existing.title;
     store.projects.set(id, existing);
+    saveStore(store);
     return existing;
   },
 
@@ -78,6 +127,7 @@ export const serverStore = {
           store.reports.delete(reportId);
         }
       });
+      saveStore(store);
     }
     return existed;
   },
@@ -143,11 +193,16 @@ export const serverStore = {
     };
 
     store.reports.set(reportId, newReport);
+    saveStore(store);
     return newReport;
   },
 
   deleteReport(id: string): boolean {
     const store = initStore();
-    return store.reports.delete(id);
+    const existed = store.reports.delete(id);
+    if (existed) {
+      saveStore(store);
+    }
+    return existed;
   },
 };

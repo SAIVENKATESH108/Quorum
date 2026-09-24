@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uuid
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select

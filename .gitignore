@@ -42,3 +42,4 @@ Thumbs.db
 # Docker / local logs
 logs/
 *.log
+.quorum-data.json
