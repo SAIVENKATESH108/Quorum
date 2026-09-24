@@ -21,31 +21,33 @@ interface PageProps {
  */
 async function getReportData(reportId: string): Promise<ReportDetailResponse | null> {
   const requestHeaders = headers();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  // 1. Try direct backend query first
+  const backendUrl =
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://127.0.0.1:8000";
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
-    try {
-      const res = await fetch(`${apiUrl}/api/reports/${reportId}`, {
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (res.ok) {
-        const data: ReportDetailResponse = await res.json();
-        return data;
-      }
-    } catch {
-      // Backend not reached, fall through to the local server store
+  try {
+    const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/reports/${reportId}`, {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    if (res.ok) {
+      const data: ReportDetailResponse = await res.json();
+      return data;
     }
+  } catch {
+    // Backend not reached directly, fall through to proxy
   }
 
-  // The deployed Next API proxy may have access to the configured backend even
-  // when NEXT_PUBLIC_API_URL is unset or points at localhost. Use the same
-  // request path as the browser, forwarding the Clerk cookie for ownership.
+  // 2. The deployed Next API proxy fallback
   try {
     const host = requestHeaders.get("host");
-    const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+    const forwardedProto = requestHeaders.get("x-forwarded-proto");
+    const isLocal = host?.includes("localhost") || host?.includes("127.0.0.1");
+    const protocol = forwardedProto || (isLocal ? "http" : process.env.NODE_ENV === "production" ? "https" : "http");
     if (host) {
       const proxyResponse = await fetch(
         `${protocol}://${host}/api/reports/${reportId}`,
@@ -61,7 +63,7 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse | n
       }
     }
   } catch {
-    // Fall through to the local store for explicitly local development.
+    // Fall through to local store
   }
 
   return serverStore.getReport(reportId);

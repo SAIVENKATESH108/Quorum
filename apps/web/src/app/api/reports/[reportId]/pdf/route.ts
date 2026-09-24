@@ -11,7 +11,7 @@ export async function GET(
   const apiUrl = backendApiUrl();
 
   // 1. If backend API is configured and reachable, attempt fetching from FastAPI
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       const backendRes = await fetch(`${apiUrl}/api/reports/${reportId}/pdf`, {
         headers: { ...backendHeaders(request), Accept: "application/pdf" },

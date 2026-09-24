@@ -10,7 +10,7 @@ export async function GET(
   const apiUrl = backendApiUrl();
 
   // 1. If backend API is configured and reachable, attempt proxying
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       const backendRes = await fetch(`${apiUrl}/api/reports/${reportId}`, {
         headers: backendHeaders(request),
@@ -48,7 +48,7 @@ export async function DELETE(
   const { reportId } = params;
   const apiUrl = backendApiUrl();
 
-  if (apiUrl && !apiUrl.includes("localhost")) {
+  if (apiUrl) {
     try {
       await fetch(`${apiUrl}/api/reports/${reportId}`, {
         method: "DELETE",

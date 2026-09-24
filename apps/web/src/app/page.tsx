@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 export default function PublicLandingPage() {
   return (
     <div className="min-h-screen bg-bg text-text-primary flex flex-col selection:bg-accent/20 selection:text-accent">
@@ -55,6 +57,7 @@ export default function PublicLandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link
               href="/sign-in"
               className="text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary px-3 py-1.5 transition-colors"
