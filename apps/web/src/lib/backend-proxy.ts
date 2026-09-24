@@ -7,8 +7,20 @@ import type { NextRequest } from "next/server";
  * reachable from a deployed serverless/edge runtime.
  */
 export function backendApiUrl(): string | null {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (!apiUrl || apiUrl.includes("localhost")) return null;
+  const apiUrl = (
+    process.env.FASTAPI_URL ||
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://127.0.0.1:8000"
+  ).replace(/\/$/, "");
+
+  // When deployed to Vercel/cloud, an unconfigured localhost URL cannot be contacted.
+  const isLocal = apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1");
+  const isCloud = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
+  if (isCloud && isLocal) {
+    return null;
+  }
+
   return apiUrl;
 }
 

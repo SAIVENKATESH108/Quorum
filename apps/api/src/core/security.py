@@ -110,22 +110,27 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     except Exception:
         pass
 
-    jwks_url = settings.CLERK_JWKS_URL
+    # 1. Neon Auth / Clerk JWKS verification if JWKS URL or Issuer is configured
+    jwks_url = settings.NEON_AUTH_JWKS_URL
+    if not jwks_url and settings.NEON_AUTH_URL:
+        jwks_url = f"{settings.NEON_AUTH_URL.rstrip('/')}/.well-known/jwks.json"
+    if not jwks_url:
+        jwks_url = settings.CLERK_JWKS_URL
     if not jwks_url and settings.CLERK_ISSUER:
         jwks_url = f"{settings.CLERK_ISSUER.rstrip('/')}/.well-known/jwks.json"
 
-    if jwks_url and token_alg == "RS256":
+    if jwks_url:
         try:
             jwk_client = jwt.PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
             signing_key = jwk_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,
                 signing_key.key,
-                algorithms=["RS256"],
+                algorithms=["RS256", "EdDSA", "ES256"],
                 options={"verify_exp": True},
             )
         except Exception as exc:
-            logger.debug(f"[AUTH] Clerk JWKS verification failed, trying fallbacks: {exc}")
+            logger.debug(f"[AUTH] JWKS verification failed for {jwks_url}, trying fallbacks: {exc}")
 
     # 2. PEM Public Key verification
     if not payload and settings.CLERK_PEM_PUBLIC_KEY:

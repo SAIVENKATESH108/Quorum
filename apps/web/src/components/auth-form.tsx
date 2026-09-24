@@ -23,7 +23,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(mode === "login" ? { email, password } : { email, password, name }),
       });
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("Unable to reach backend service. Please check your network and API deployment.");
+      }
       if (!response.ok) throw new Error(data.detail || data.error || "Authentication failed");
       await refresh();
       router.push("/projects");

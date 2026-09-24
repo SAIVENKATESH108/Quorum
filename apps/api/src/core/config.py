@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     CLERK_JWKS_URL: Optional[str] = None
     CLERK_ISSUER: Optional[str] = None
     CLERK_PEM_PUBLIC_KEY: Optional[str] = None
+    NEON_AUTH_URL: Optional[str] = None
+    NEON_AUTH_JWKS_URL: Optional[str] = None
 
     # Local Ollama Provider configuration
     OLLAMA_BASE_URL: str = "http://localhost:11434"
