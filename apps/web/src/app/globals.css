@@ -91,6 +91,28 @@
     @apply border-border;
   }
 
+  /* Responsive bounds protection: prevent containers and text from spilling out of bounds */
+  pre, code, kbd, samp {
+    max-width: 100%;
+    overflow-x: auto;
+    word-break: break-word;
+  }
+
+  table {
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+  }
+
+  img, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  p, h1, h2, h3, h4, h5, h6, span, div {
+    overflow-wrap: break-word;
+  }
+
   body {
     background-color: var(--bg);
     color: var(--text-primary);

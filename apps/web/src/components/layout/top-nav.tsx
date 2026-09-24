@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
-import { useAuth } from "@/components/auth-provider";
+import { UserAvatarDropdown } from "./user-avatar-dropdown";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,6 @@ interface TopNavProps {
 
 export function TopNav({ onOpenMobileMenu }: TopNavProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
 
   const navLinks = [
     { href: "/projects", label: "Projects" },
@@ -90,22 +89,10 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
           })}
         </nav>
 
-        {/* Right: Theme Toggle + native session authentication */}
+        {/* Right: Theme Toggle + Tailored User Avatar Dropdown */}
         <div className="flex items-center gap-2.5">
           <ThemeToggle />
-
-          {!user ? (
-            <Link
-              href="/sign-in"
-              className="rounded-control px-3 py-1.5 text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 transition-colors"
-            >
-              Sign In
-            </Link>
-          ) : (
-            <button type="button" onClick={() => void logout()} className="rounded-full bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground">
-              {user.name || user.email.split("@")[0]}
-            </button>
-          )}
+          <UserAvatarDropdown />
         </div>
       </div>
     </header>

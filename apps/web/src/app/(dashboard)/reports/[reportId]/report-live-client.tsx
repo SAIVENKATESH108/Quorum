@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ActivityFeed } from "@/components/report/activity-feed";
+import { LiveTelemetryConsole } from "@/components/report/live-telemetry-console";
 import { PipelineStages } from "@/components/report/pipeline-stages";
 import { ReportHeader } from "@/components/report/report-header";
 import { ReportView } from "@/components/report/report-view";
@@ -109,7 +110,18 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         />
       </section>
 
-      {/* 3. Live Streaming Activity Feed */}
+      {/* 3. Real-time Process Initialization & Swarm Telemetry Console */}
+      <section aria-label="Real-time Execution Telemetry Console">
+        <LiveTelemetryConsole
+          reportId={reportId}
+          query={initialReport.query}
+          status={effectiveStatus}
+          events={events}
+          createdAt={initialReport.created_at}
+        />
+      </section>
+
+      {/* 4. Live Streaming Activity Feed */}
       <section aria-label="Real-time Activity Stream">
         <ActivityFeed
           events={events}
@@ -118,7 +130,7 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         />
       </section>
 
-      {/* 4. Interactive Report View */}
+      {/* 5. Interactive Report View */}
       {isComplete && (
         <section aria-label="Finished Research Report">
           <ReportView report={displayReport} />

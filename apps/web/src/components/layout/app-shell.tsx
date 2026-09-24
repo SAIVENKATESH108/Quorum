@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <TopNav onOpenMobileMenu={() => setSidebarOpen(true)} />
 
       {/* Main Layout Area: Fixed Sidebar + Scrollable Content Viewport */}
-      <div className="flex flex-1 h-[calc(100vh-3.5rem)] w-full overflow-hidden relative">
+      <div className="flex flex-1 h-[calc(100vh-3.5rem)] w-full overflow-hidden relative min-w-0">
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -27,9 +27,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 h-full overflow-y-auto overflow-x-hidden no-scrollbar focus:outline-none scroll-smooth bg-bg/50"
+          className="flex-1 min-w-0 max-w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar focus:outline-none scroll-smooth bg-bg/50"
         >
-          <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto w-full pb-24">
+          <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-7xl mx-auto w-full pb-24 min-w-0">
             {children}
           </div>
         </main>
