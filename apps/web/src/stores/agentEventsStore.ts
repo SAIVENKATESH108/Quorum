@@ -7,6 +7,7 @@ export type ReportStatus =
   | "fact_checking"
   | "writing"
   | "complete"
+  | "needs_review"
   | "failed";
 
 export type AgentRole =

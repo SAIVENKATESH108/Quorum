@@ -25,7 +25,11 @@ logger = logging.getLogger("quorum.api.projects")
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
 
-async def _run_report_pipeline_background(report_id: uuid.UUID, query: str) -> None:
+async def _run_report_pipeline_background(
+    report_id: uuid.UUID,
+    query: str,
+    client_file_tree: Optional[dict] = None,
+) -> None:
     """Background task executing the report generation pipeline via OrchestrationEngine."""
     try:
         from src.agents.engine import OrchestrationEngine, StatusPublisher
@@ -49,7 +53,7 @@ async def _run_report_pipeline_background(report_id: uuid.UUID, query: str) -> N
 
         publisher.subscribe(forward_to_redis)
         engine = OrchestrationEngine(publisher=publisher, session_factory=async_session_maker)
-        await engine.run_report(report_id=report_id)
+        await engine.run_report(report_id=report_id, client_file_tree=client_file_tree)
     except Exception as exc:
         logger.exception(f"[PIPELINE] Background report DAG execution error for {report_id}: {exc}")
 
@@ -169,7 +173,11 @@ async def create_report(
     await db.refresh(report)
 
     # Trigger Orchestration DAG in background without blocking response (<500ms)
-    asyncio.create_task(_run_report_pipeline_background(report.id, payload.query))
+    asyncio.create_task(
+        _run_report_pipeline_background(
+            report.id, payload.query, client_file_tree=payload.file_tree
+        )
+    )
 
 
     return ReportCreateResponse(

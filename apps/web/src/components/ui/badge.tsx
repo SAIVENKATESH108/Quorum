@@ -20,6 +20,8 @@ const badgeVariants = cva(
           "border-indigo-500/20 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-400/20",
         complete:
           "border-emerald-500/20 bg-success-subtle text-success-text dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-400/20",
+        needs_review:
+          "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 dark:border-amber-400/30",
         failed:
           "border-rose-500/20 bg-danger-subtle text-danger-text dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-400/20",
       },
@@ -46,6 +48,7 @@ function Badge({ className, variant, dot = false, children, ...props }: BadgePro
             variant === "pending" && "bg-warning",
             variant === "running" && "bg-accent animate-pulse",
             variant === "complete" && "bg-success",
+            variant === "needs_review" && "bg-amber-500",
             variant === "failed" && "bg-danger",
             (!variant || variant === "default") && "bg-white",
             variant === "secondary" && "bg-text-secondary"

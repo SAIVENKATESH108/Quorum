@@ -25,6 +25,16 @@ class FactCheckerAgent(Agent):
         payload = task.payload or {}
         research_outputs: List[Dict[str, Any]] = payload.get("research_outputs", [])
 
+        # If document/architecture analyses are present, run codebase grounding self-check
+        doc_analyses = payload.get("doc_analyses", [])
+        if not doc_analyses:
+            doc_analyses = [
+                res for res in research_outputs
+                if isinstance(res, dict) and ("analysis" in res or "codebase_claims" in res)
+            ]
+        if doc_analyses or payload.get("source_type") in ("github_repo", "local_folder"):
+            return await self._verify_codebase_analyses(task, doc_analyses)
+
         # Gather all claims from all researchers
         all_claims: List[Dict[str, Any]] = []
         for res in research_outputs:
@@ -149,3 +159,125 @@ class FactCheckerAgent(Agent):
             })
 
         return evaluated
+
+    async def _verify_codebase_analyses(self, task: AgentTask, doc_analyses: List[Dict[str, Any]]) -> AgentResult:
+        """
+        Deterministic Grounding Self-Check Pass:
+        Validates all referenced file paths, module structures, and code identifiers
+        against the genuine fetched file tree and code tokens.
+        Computes the real confidence score directly from the grounding pass rate.
+        """
+        payload = task.payload or {}
+        file_tree = payload.get("file_tree", [])
+        key_files = payload.get("key_files", [])
+
+        # If not passed in task payload, check inside individual doc_analyses
+        if not file_tree or not key_files:
+            for doc in doc_analyses:
+                if not file_tree and doc.get("file_tree"):
+                    file_tree = doc["file_tree"]
+                if not key_files and doc.get("key_files"):
+                    key_files = doc["key_files"]
+
+        known_files = set(file_tree)
+        code_tokens = set()
+        for kf in key_files:
+            p = kf.get("path", "")
+            if p:
+                known_files.add(p)
+            content = kf.get("content", "")
+            for token in re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", content):
+                code_tokens.add(token)
+
+        evaluations: List[Dict[str, Any]] = []
+        ungrounded_claims: List[str] = []
+
+        for doc in doc_analyses:
+            focus_area = doc.get("focus_area", doc.get("subtopic", "Module Architecture"))
+            analysis_text = doc.get("analysis", "")
+            code_claims = doc.get("codebase_claims", [])
+
+            # 1. Verify structured codebase claims
+            for claim in code_claims:
+                fp = claim.get("file_path", "").strip("`'\".,()[]")
+                ct = claim.get("claim_text", "")
+                if not fp:
+                    continue
+                is_grounded = fp in known_files or any(fp.endswith(kf) or kf.endswith(fp) for kf in known_files)
+                status = "verified" if is_grounded else "unsupported"
+                evaluations.append({
+                    "claim_text": f"Codebase claim for `{fp}`: {ct}",
+                    "status": status,
+                    "confidence": 0.99 if is_grounded else 0.20,
+                    "notes": "Verified in repository file tree" if is_grounded else f"File '{fp}' not found in fetched repository tree",
+                    "file_path": fp,
+                })
+                if not is_grounded:
+                    ungrounded_claims.append(f"Referenced unverified file: `{fp}`")
+
+            # 2. Extract and verify file path references in prose analysis
+            if analysis_text:
+                file_matches = set(re.findall(r"(?:[\w\-.]+/)+[\w\-.]+\.(?:py|ts|js|tsx|jsx|rs|go|md|json|toml|yaml|yml|html|css|cpp|c|h)", analysis_text))
+                for fpath in file_matches:
+                    norm_fpath = fpath.strip("`'\".,()[]")
+                    if any(e.get("file_path") == norm_fpath for e in evaluations):
+                        continue
+                    is_grounded = norm_fpath in known_files or any(norm_fpath.endswith(kf) or kf.endswith(norm_fpath) for kf in known_files)
+                    status = "verified" if is_grounded else "unsupported"
+                    evaluations.append({
+                        "claim_text": f"File path reference: `{norm_fpath}` ({focus_area})",
+                        "status": status,
+                        "confidence": 0.99 if is_grounded else 0.20,
+                        "notes": "Verified in repository file tree" if is_grounded else f"File '{norm_fpath}' not found in fetched repository tree",
+                        "file_path": norm_fpath,
+                    })
+                    if not is_grounded:
+                        ungrounded_claims.append(f"Referenced nonexistent file: `{norm_fpath}`")
+
+                # 3. Extract and verify code identifiers in prose analysis
+                symbol_matches = set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]{3,})`", analysis_text))
+                for sym in symbol_matches:
+                    if sym.lower() in ("python", "typescript", "javascript", "react", "fastapi", "docker", "redis", "postgres", "true", "false", "none", "null", "async", "await"):
+                        continue
+                    is_grounded = sym in code_tokens
+                    status = "verified" if is_grounded else "unsupported"
+                    evaluations.append({
+                        "claim_text": f"Symbol reference: `{sym}` ({focus_area})",
+                        "status": status,
+                        "confidence": 0.95 if is_grounded else 0.35,
+                        "notes": "Matched symbol in inspected module excerpts" if is_grounded else f"Symbol `{sym}` not visible in inspected key files",
+                        "symbol": sym,
+                    })
+                    if not is_grounded:
+                        ungrounded_claims.append(f"Referenced unverified symbol: `{sym}`")
+
+        total = len(evaluations)
+        verified = sum(1 for e in evaluations if e.get("status") == "verified")
+        unsupported = total - verified
+
+        # True self-check pass rate based on real code grounding
+        pass_rate = round((verified / max(total, 1)) * 100, 1) if total > 0 else 100.0
+        needs_review = unsupported > 0 and pass_rate < 85.0
+
+        return AgentResult(
+            success=True,
+            output={
+                "evaluations": evaluations,
+                "total_evaluated": total,
+                "total_claims": total,
+                "verified_count": verified,
+                "verified_claims": verified,
+                "unsupported_count": unsupported,
+                "unverified_claims": ungrounded_claims,
+                "confidence_score": pass_rate,
+                "needs_review": needs_review,
+                "ungrounded_claims": ungrounded_claims,
+                "summary": f"Codebase Grounding Self-Check: {verified}/{total} claims verified ({pass_rate}% pass rate).",
+            },
+            metadata={
+                "evaluated_count": total,
+                "verified_count": verified,
+                "confidence_score": pass_rate,
+                "needs_review": needs_review,
+            },
+        )

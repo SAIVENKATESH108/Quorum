@@ -137,7 +137,11 @@ class OrchestrationEngine:
         self.session_factory = session_factory
         self.publisher = publisher or default_publisher
 
-    async def run_report(self, report_id: uuid.UUID) -> bool:
+    async def run_report(
+        self,
+        report_id: uuid.UUID,
+        client_file_tree: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
         Entrypoint for end-to-end report generation pipeline:
         1. Retrieves user's research query from PostgreSQL.
@@ -178,16 +182,32 @@ class OrchestrationEngine:
                 logger.error(f"[ENGINE] GitHub fetching failed for {source_ref}: {exc}")
                 await self._update_report_status(report_id, ReportStatus.FAILED, error=f"GitHub ingestion failed: {exc}")
                 return False
-        elif source_type == "local_folder" and source_ref:
-            try:
-                from src.services.github_connector import GitHubConnector
-                repo_context = GitHubConnector.scan_local_directory(source_ref)
-                file_tree = repo_context.get("file_paths", [])
-                key_files = repo_context.get("key_files", [])
-            except Exception as exc:
-                logger.error(f"[ENGINE] Local folder ingestion failed for {source_ref}: {exc}")
-                await self._update_report_status(report_id, ReportStatus.FAILED, error=f"Local folder ingestion failed: {exc}")
-                return False
+        elif source_type == "local_folder":
+            # Check client_file_tree first (from browser File System Access API)
+            if client_file_tree and "files" in client_file_tree and client_file_tree["files"]:
+                file_tree = [f["path"] for f in client_file_tree["files"] if "path" in f]
+                key_files = [
+                    {
+                        "path": f["path"],
+                        "content": f.get("content", "")[:4000],
+                        "blob_url": f"file:///{f['path']}",
+                        "line_count": len(f.get("content", "").splitlines()) if f.get("content") else 0,
+                    }
+                    for f in client_file_tree["files"]
+                    if f.get("content")
+                ]
+
+            # If key_files still empty, attempt server-side local directory scan if source_ref exists
+            if not key_files and source_ref:
+                try:
+                    from src.services.github_connector import GitHubConnector
+                    repo_context = GitHubConnector.scan_local_directory(source_ref)
+                    file_tree = repo_context.get("file_paths", [])
+                    key_files = repo_context.get("key_files", [])
+                except Exception as exc:
+                    logger.error(f"[ENGINE] Local folder ingestion failed for {source_ref}: {exc}")
+                    await self._update_report_status(report_id, ReportStatus.FAILED, error=f"Local folder ingestion failed: {exc}")
+                    return False
 
         # Step 3: Run OrchestratorAgent to decompose query into topological sub-tasks
         orchestrator_agent = AgentFactory.create(AgentRole.ORCHESTRATOR, self.provider)
@@ -284,8 +304,13 @@ class OrchestrationEngine:
                     node_results[node.id] = res.output
 
         # All nodes across all topological waves completed successfully
-        await self._update_report_status(report_id, ReportStatus.COMPLETE)
-        logger.info(f"[ENGINE] Report {report_id} pipeline completed successfully!")
+        has_needs_review = any(
+            isinstance(out, dict) and out.get("needs_review")
+            for out in node_results.values()
+        )
+        final_status = ReportStatus.NEEDS_REVIEW if has_needs_review else ReportStatus.COMPLETE
+        await self._update_report_status(report_id, final_status)
+        logger.info(f"[ENGINE] Report {report_id} pipeline completed with status {final_status.value}!")
         return True
 
     async def _execute_single_node(
@@ -311,24 +336,72 @@ class OrchestrationEngine:
         # - Writer requires both raw claims AND fact-checker validation scores/citations.
         payload = dict(node.payload)
         if node.agent_role == AgentRole.FACT_CHECKER:
-            research_outputs = [
-                prior_results[dep]
-                for dep in node.depends_on
-                if dep in prior_results
-            ]
+            research_outputs = []
+            doc_analyses = []
+            for dep in node.depends_on:
+                if dep in prior_results:
+                    res_val = prior_results[dep]
+                    if "codebase_claims" in res_val or "analysis" in res_val:
+                        doc_analyses.append(res_val)
+                    else:
+                        research_outputs.append(res_val)
             payload["research_outputs"] = research_outputs
+            payload["doc_analyses"] = doc_analyses
+            for res_val in prior_results.values():
+                if "key_files" in res_val and "key_files" not in payload:
+                    payload["key_files"] = res_val["key_files"]
+                if "file_tree" in res_val and "file_tree" not in payload:
+                    payload["file_tree"] = res_val["file_tree"]
+                if "truncation_notice" in res_val and "truncation_notice" not in payload:
+                    payload["truncation_notice"] = res_val["truncation_notice"]
+
         elif node.agent_role == AgentRole.WRITER:
             research_outputs = []
             fact_evaluations = []
+            doc_analyses = []
+            unverified_claims = []
+            confidence_score = 1.0
+            needs_review = False
+            truncation_notice = ""
+            key_files = []
+            file_tree = []
+
             for dep_id in node.depends_on:
                 dep_res = prior_results.get(dep_id, {})
                 if "evaluations" in dep_res:
                     fact_evaluations.extend(dep_res["evaluations"])
+                if "unverified_claims" in dep_res:
+                    unverified_claims.extend(dep_res["unverified_claims"])
+                if "confidence_score" in dep_res:
+                    confidence_score = dep_res["confidence_score"]
+                if dep_res.get("needs_review"):
+                    needs_review = True
+                if "analysis" in dep_res or "codebase_claims" in dep_res:
+                    doc_analyses.append(dep_res)
+
             for res_data in prior_results.values():
                 if "claims" in res_data:
                     research_outputs.append(res_data)
+                if ("codebase_claims" in res_data or "analysis" in res_data) and res_data not in doc_analyses:
+                    doc_analyses.append(res_data)
+                if "key_files" in res_data and not key_files:
+                    key_files = res_data["key_files"]
+                if "file_tree" in res_data and not file_tree:
+                    file_tree = res_data["file_tree"]
+                if "truncation_notice" in res_data and not truncation_notice:
+                    truncation_notice = res_data["truncation_notice"]
+
             payload["research_outputs"] = research_outputs
             payload["fact_evaluations"] = fact_evaluations
+            payload["doc_analyses"] = doc_analyses
+            payload["unverified_claims"] = unverified_claims
+            payload["confidence_score"] = confidence_score
+            payload["needs_review"] = needs_review
+            payload["truncation_notice"] = truncation_notice
+            if key_files and "key_files" not in payload:
+                payload["key_files"] = key_files
+            if file_tree and "file_tree" not in payload:
+                payload["file_tree"] = file_tree
 
         # --- Dual-Write Persistence (PostgreSQL) ---
         # Maintain immutable audit history of every agent run and execution attempt
@@ -390,6 +463,13 @@ class OrchestrationEngine:
 
         # --- Terminal Task State Broadcast ---
         # Notify WebSocket subscribers whether this node succeeded or encountered a failure
+        task_meta: Dict[str, Any] = {"node_id": node.id, "error": result.error}
+        if result.success and isinstance(result.output, dict):
+            if "confidence_score" in result.output:
+                task_meta["confidence_score"] = result.output["confidence_score"]
+            if "needs_review" in result.output:
+                task_meta["needs_review"] = result.output["needs_review"]
+
         await self.publisher.publish(
             StatusEvent(
                 event_type="task_completed" if result.success else "task_failed",
@@ -398,7 +478,7 @@ class OrchestrationEngine:
                 agent_role=node.agent_role.value,
                 run_id=run_id,
                 task_id=task_id,
-                metadata={"node_id": node.id, "error": result.error},
+                metadata=task_meta,
             )
         )
 
@@ -427,7 +507,7 @@ class OrchestrationEngine:
                 values["error_message"] = error
             elif status != ReportStatus.FAILED:
                 values["error_message"] = None
-            if status in (ReportStatus.COMPLETE, ReportStatus.FAILED):
+            if status in (ReportStatus.COMPLETE, ReportStatus.NEEDS_REVIEW, ReportStatus.FAILED):
                 values["completed_at"] = datetime.now(timezone.utc)
 
             stmt = update(Report).where(Report.id == report_id).values(**values)

@@ -166,6 +166,35 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
                 if not rs_res.scalars().first():
                     session.add(ReportSource(report_id=report_id, source_id=source_rec.id))
 
+        # Persist codebase module sources if document analyzer generated codebase_claims
+        if result.success and agent_role == AgentRole.DOCUMENT_ANALYZER:
+            for claim in result.output.get("codebase_claims", []):
+                file_path = claim.get("file_path")
+                if not file_path:
+                    continue
+                blob_url = claim.get("blob_url") or f"file:///{file_path}"
+                title = f"Codebase Module: {file_path}"
+
+                src_stmt = select(Source).where(Source.url == blob_url)
+                src_res = await session.execute(src_stmt)
+                source_rec = src_res.scalars().first()
+                if not source_rec:
+                    source_rec = Source(
+                        id=uuid.uuid4(),
+                        url=blob_url[:2048],
+                        title=title[:512],
+                    )
+                    session.add(source_rec)
+                    await session.flush()
+
+                rs_stmt = select(ReportSource).where(
+                    ReportSource.report_id == report_id,
+                    ReportSource.source_id == source_rec.id,
+                )
+                rs_res = await session.execute(rs_stmt)
+                if not rs_res.scalars().first():
+                    session.add(ReportSource(report_id=report_id, source_id=source_rec.id))
+
         # If WriterAgent successfully generated sections, persist them
         if result.success and agent_role == AgentRole.WRITER:
             sections = result.output.get("sections", [])
@@ -188,10 +217,16 @@ async def process_agent_task(ctx: Optional[Dict[str, Any]], command_data: Dict[s
                     src_res = await session.execute(src_stmt)
                     source_rec = src_res.scalars().first()
                     if not source_rec:
+                        if "github.com" in cite_url or "file:///" in cite_url:
+                            file_part = cite_url.split("/")[-1].split("#")[0]
+                            title = f"Source Module: {file_part}"
+                        else:
+                            title = f"Cited Reference: {heading[:80]}"
+
                         source_rec = Source(
                             id=uuid.uuid4(),
                             url=cite_url[:2048],
-                            title=f"Cited Reference: {heading[:80]}",
+                            title=title[:512],
                         )
                         session.add(source_rec)
                         await session.flush()

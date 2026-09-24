@@ -140,6 +140,8 @@ class GitHubConnector:
                             fetched_files.append({
                                 "path": f["path"],
                                 "content": content[:4000],  # truncate individual files
+                                "blob_url": f"https://github.com/{owner}/{repo}/blob/{default_branch}/{f['path']}",
+                                "line_count": len(content.splitlines()),
                             })
                             total_bytes += len(content)
                     except Exception as e:
@@ -237,6 +239,8 @@ class GitHubConnector:
                 fetched_files.append({
                     "path": f["path"],
                     "content": content[:4000],
+                    "blob_url": f"file:///{f['path']}",
+                    "line_count": len(content.splitlines()),
                 })
                 total_bytes += len(content)
             except Exception as e:

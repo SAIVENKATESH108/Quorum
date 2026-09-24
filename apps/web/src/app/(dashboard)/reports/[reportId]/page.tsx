@@ -116,13 +116,25 @@ export default async function ReportDetailPage({ params }: PageProps) {
             </Link>
 
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                  report.status === "needs_review"
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    : report.status === "complete"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    : "bg-surface-subtle text-text-secondary border-border"
+                }`}
+              >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 <span>{reportStatus}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono bg-accent/10 text-accent border border-accent/20">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Peer-Reviewed DOIs</span>
+                <span>
+                  {report.source_type === "github_repo" || report.source_type === "local_folder"
+                    ? "Grounded Codebase Spec"
+                    : "Peer-Reviewed DOIs"}
+                </span>
               </span>
             </div>
           </div>
@@ -163,12 +175,16 @@ export default async function ReportDetailPage({ params }: PageProps) {
           ))}
         </div>
 
-        {/* Primary Sources & Academic DOIs */}
+        {/* Primary Sources & Citations */}
         {report.sources && report.sources.length > 0 && (
           <aside className="pt-6 border-t border-border/80 space-y-3" aria-label="Verified Primary Sources">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-secondary">
               <BookOpen className="h-4 w-4 text-accent" />
-              <span>Verified Primary Sources &amp; Academic DOIs ({report.sources.length})</span>
+              <span>
+                {report.source_type === "github_repo" || report.source_type === "local_folder"
+                  ? `Verified Repository Source Modules (${report.sources.length})`
+                  : `Verified Primary Sources & Academic DOIs (${report.sources.length})`}
+              </span>
             </div>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {report.sources.map((src, i) => (

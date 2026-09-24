@@ -44,8 +44,9 @@ export function ReportHeader({
 
   const getStatusVariant = (
     s: ReportStatus
-  ): "complete" | "failed" | "pending" | "running" | "secondary" => {
+  ): "complete" | "needs_review" | "failed" | "pending" | "running" | "secondary" => {
     if (s === "complete") return "complete";
+    if (s === "needs_review") return "needs_review";
     if (s === "failed") return "failed";
     if (s === "pending") return "pending";
     return "running";

@@ -26,6 +26,7 @@ class ReportStatus(str, enum.Enum):
     FACT_CHECKING = "fact_checking"
     WRITING = "writing"
     COMPLETE = "complete"
+    NEEDS_REVIEW = "needs_review"
     FAILED = "failed"
 
 

@@ -19,6 +19,7 @@ export interface ReportCreate {
   source_type?: string;
   source_ref?: string;
   provider_mode?: string;
+  file_tree?: any;
 }
 
 export interface ReportCreateResponse {
@@ -50,6 +51,9 @@ export interface ReportSummaryResponse {
   created_at: string;
   completed_at?: string | null;
   error_message?: string | null;
+  source_type?: string;
+  source_ref?: string;
+  provider_mode?: string;
 }
 
 export interface ReportDetailResponse extends ReportSummaryResponse {

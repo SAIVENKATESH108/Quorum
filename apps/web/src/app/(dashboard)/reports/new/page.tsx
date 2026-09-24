@@ -77,9 +77,29 @@ export default function NewReportPage() {
       const dirHandle = await window.showDirectoryPicker();
       setSelectedFolderName(dirHandle.name);
 
-      const files: { path: string; size: number }[] = [];
+      const files: { path: string; size: number; content?: string }[] = [];
       let totalBytes = 0;
+      let totalContentBytes = 0;
       const MAX_BYTES = 2 * 1024 * 1024; // 2MB budget
+      const MAX_CONTENT_BYTES = 250 * 1024; // 250KB content budget
+
+      const isKeyFile = (p: string) => {
+        const lower = p.toLowerCase();
+        return (
+          lower.includes("readme") ||
+          lower.endsWith("package.json") ||
+          lower.endsWith("pyproject.toml") ||
+          lower.endsWith("cargo.toml") ||
+          lower.endsWith("main.py") ||
+          lower.endsWith("index.ts") ||
+          lower.endsWith("index.js") ||
+          lower.endsWith("app.py") ||
+          lower.endsWith("main.go") ||
+          lower.includes("/src/") ||
+          lower.includes("/core/") ||
+          lower.includes("/api/")
+        );
+      };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const scanDirectory = async (handle: any, currentPath = "") => {
@@ -98,7 +118,17 @@ export default function NewReportPage() {
             const file = await entry.getFile();
             if (file.size < 100000) {
               // only text files < 100kb
-              files.push({ path, size: file.size });
+              let fileContent: string | undefined = undefined;
+              if (isKeyFile(path) && totalContentBytes + file.size < MAX_CONTENT_BYTES) {
+                try {
+                  const text = await file.text();
+                  fileContent = text;
+                  totalContentBytes += text.length;
+                } catch {
+                  // ignore unreadable/binary
+                }
+              }
+              files.push({ path, size: file.size, content: fileContent });
               totalBytes += file.size;
               if (totalBytes > MAX_BYTES) break;
             }
@@ -148,6 +178,7 @@ export default function NewReportPage() {
           source_type: sourceType,
           source_ref: sourceRef,
           provider_mode: providerMode,
+          file_tree: scannedFiles.length > 0 ? { files: scannedFiles } : undefined,
         },
       },
       {
