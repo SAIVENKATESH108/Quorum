@@ -1,12 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import httpx
 
 from src.agents.providers import (
     NeuralPulseProvider,
     get_default_provider,
     ProviderFallbackChain,
-    ProviderUnavailableError,
 )
 
 def test_neural_pulse_provider_configuration():
