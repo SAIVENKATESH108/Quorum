@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     OPENROUTER_API_KEY: Optional[str] = None
     NEURAL_PULSE_API_KEY: Optional[str] = None
+    NEURAL_PULSE_BASE_URL: str = "https://pulse.evorozen.com/api/neural"
     CLERK_SECRET_KEY: Optional[str] = None
     CLERK_JWKS_URL: Optional[str] = None
     CLERK_ISSUER: Optional[str] = None

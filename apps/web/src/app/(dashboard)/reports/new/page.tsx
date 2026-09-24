@@ -222,12 +222,17 @@ export default function NewReportPage() {
               </div>
             </div>
 
-            {/* Offline Local Ollama / Cloud Swarm Badge */}
+            {/* Provider Badge */}
             <div className="hidden sm:flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full border border-border bg-surface-subtle">
               {providerMode === "local" ? (
                 <>
                   <HardDrive className="h-3.5 w-3.5 text-amber-500" />
                   <span className="text-amber-500 font-semibold">Local (Ollama Offline)</span>
+                </>
+              ) : providerMode === "neural_pulse" ? (
+                <>
+                  <Zap className="h-3.5 w-3.5 text-violet-500" />
+                  <span className="text-violet-500 font-semibold">Evorozen Neural Pulse</span>
                 </>
               ) : (
                 <>
