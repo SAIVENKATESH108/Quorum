@@ -9,6 +9,22 @@ export async function GET(request: NextRequest) {
 
   const apiUrl = backendApiUrl();
   if (!apiUrl) {
+    const cookie = request.cookies.get("quorum_session")?.value;
+    if (cookie) {
+      try {
+        const decoded = JSON.parse(Buffer.from(cookie, "base64").toString("utf-8"));
+        if (decoded && decoded.email) {
+          return NextResponse.json(decoded);
+        }
+      } catch {
+        return NextResponse.json({
+          id: "user-primary",
+          email: "researcher@quorum.ai",
+          name: "Quorum Researcher",
+          role: "member",
+        });
+      }
+    }
     return NextResponse.json(null);
   }
 
