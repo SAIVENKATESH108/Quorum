@@ -78,6 +78,7 @@ export const STAGE_ORDER: ReportStatus[] = [
   "fact_checking",
   "writing",
   "complete",
+  "needs_review",
 ];
 
 export function getStageState(
@@ -89,7 +90,8 @@ export function getStageState(
     return "complete";
   }
 
-  if (currentStatus === "complete") {
+  // Both complete and needs_review indicate the full 5-stage synthesis is finished
+  if (currentStatus === "complete" || currentStatus === "needs_review") {
     return "complete";
   }
 
@@ -124,6 +126,7 @@ function getProgressPercentage(status: ReportStatus): number {
     case "writing":
       return 90;
     case "complete":
+    case "needs_review":
       return 100;
     case "failed":
       return 100;
@@ -144,6 +147,8 @@ function getPhaseLabel(status: ReportStatus): string {
       return "Phase 3 / 5: Cross-Entropy Empirical Fact Checking";
     case "writing":
       return "Phase 4 / 5: Section Synthesis & Citation Assembly";
+    case "needs_review":
+      return "Phase 5 / 5: Peer-Reviewed Synthesis Sealed — Ready for Review & Approval";
     case "complete":
       return "Phase 5 / 5: Verified Synthesis Publication Complete";
     case "failed":
@@ -161,7 +166,7 @@ export function PipelineStages({
   const shouldReduceMotion = useReducedMotion();
   const progressPercent = getProgressPercentage(status);
   const phaseLabel = getPhaseLabel(status);
-  const isComplete = status === "complete";
+  const isComplete = status === "complete" || status === "needs_review";
 
   // Resolve workers only from real pipeline events.
   const displayWorkers =
@@ -186,6 +191,7 @@ export function PipelineStages({
     "fact_checking",
     "writing",
     "complete",
+    "needs_review",
   ].includes(status);
 
   return (

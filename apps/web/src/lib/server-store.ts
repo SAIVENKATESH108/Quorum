@@ -399,6 +399,31 @@ export const serverStore = {
     return fallback;
   },
 
+  async updateReportStatus(id: string, status: string): Promise<ReportDetailResponse | null> {
+    try {
+      const sql = getDb();
+      await sql`
+        UPDATE public.reports
+        SET status = ${status},
+            completed_at = CASE WHEN ${status} = 'complete' THEN NOW() ELSE completed_at END
+        WHERE id = ${id};
+      `;
+      return await serverStore.getReport(id);
+    } catch (err) {
+      console.warn("[serverStore.updateReportStatus] Neon query failed:", err);
+    }
+
+    const store = initStore();
+    const r = store.reports.get(id);
+    if (r) {
+      r.status = status as any;
+      if (status === "complete") r.completed_at = new Date().toISOString();
+      saveStore(store);
+      return r;
+    }
+    return null;
+  },
+
   async deleteReport(id: string): Promise<boolean> {
     try {
       const sql = getDb();

@@ -41,6 +41,29 @@ export async function GET(
   );
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { reportId: string } }
+) {
+  const { reportId } = params;
+  try {
+    const body = await request.json();
+    const updated = await serverStore.updateReportStatus(
+      reportId,
+      body.status || "complete"
+    );
+    if (!updated) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+    return NextResponse.json(updated);
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { error: "Failed to update report", detail: (err as Error).message },
+      { status: 400 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { reportId: string } }

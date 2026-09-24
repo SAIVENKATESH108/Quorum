@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ActivityFeed } from "@/components/report/activity-feed";
 import { LiveTelemetryConsole } from "@/components/report/live-telemetry-console";
 import { PipelineStages } from "@/components/report/pipeline-stages";
+import { ReportActionSuite } from "@/components/report/report-action-suite";
 import { ReportHeader } from "@/components/report/report-header";
 import { ReportView } from "@/components/report/report-view";
 import { useReportEvents } from "@/hooks/useReportEvents";
@@ -49,9 +50,9 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
   const effectiveStatus: ReportStatus =
     liveStatus || initialReport?.status || "complete";
 
-  // Invalidate queries if status transitions to complete
+  // Invalidate queries if status transitions to complete or needs_review
   useEffect(() => {
-    if (effectiveStatus === "complete") {
+    if (effectiveStatus === "complete" || effectiveStatus === "needs_review") {
       queryClient.invalidateQueries({
         queryKey: reportKeys.detail(reportId),
       });
@@ -86,7 +87,7 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
     status: effectiveStatus,
   };
 
-  const isComplete = effectiveStatus === "complete";
+  const isComplete = effectiveStatus === "complete" || effectiveStatus === "needs_review";
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto px-1 sm:px-2">
@@ -100,7 +101,23 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         onRetry={handleRetry}
       />
 
-      {/* 2. Top-level Pipeline Stages & Parallel Research Multi-Agent Sub-Cards */}
+      {/* 2. Post-Generation Action Suite: Regenerate, Swarm Chat, College vs Enterprise Docs, IEEE Novelty Paper, PDF Viewer, & Approval */}
+      {isComplete && (
+        <section aria-label="Post-Generation Action Suite">
+          <ReportActionSuite
+            report={displayReport}
+            onRetry={handleRetry}
+            onStatusChange={(newStatus) => {
+              queryClient.invalidateQueries({
+                queryKey: reportKeys.detail(reportId),
+              });
+              router.refresh();
+            }}
+          />
+        </section>
+      )}
+
+      {/* 3. Top-level Pipeline Stages & Parallel Research Multi-Agent Sub-Cards */}
       <section aria-label="Orchestration Pipeline Visualization">
         <PipelineStages
           status={effectiveStatus}

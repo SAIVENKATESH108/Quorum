@@ -10,6 +10,8 @@ export async function GET(
   const { reportId } = params;
   const apiUrl = backendApiUrl();
 
+  const isInline = request.nextUrl.searchParams.get("preview") === "true";
+
   // 1. If backend API is configured and reachable, attempt fetching from FastAPI
   if (apiUrl) {
     try {
@@ -19,9 +21,10 @@ export async function GET(
 
       if (backendRes.ok) {
         const pdfBuffer = await backendRes.arrayBuffer();
-        const contentDisposition =
-          backendRes.headers.get("content-disposition") ||
-          `attachment; filename="quorum_research_${reportId.slice(0, 8)}.pdf"`;
+        const contentDisposition = isInline
+          ? "inline"
+          : backendRes.headers.get("content-disposition") ||
+            `attachment; filename="quorum_research_${reportId.slice(0, 8)}.pdf"`;
 
         return new NextResponse(pdfBuffer, {
           status: 200,
@@ -94,7 +97,9 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": isInline
+          ? "inline"
+          : `attachment; filename="${filename}"`,
       },
     });
   } catch (err: unknown) {
