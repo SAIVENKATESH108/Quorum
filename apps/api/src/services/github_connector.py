@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 import httpx
@@ -157,35 +158,99 @@ class GitHubConnector:
                     "key_files": fetched_files,
                 }
 
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 403 or "rate limit" in exc.response.text.lower():
+                    raise RuntimeError(
+                        f"GitHub API rate limit exceeded while querying '{owner}/{repo}'. "
+                        "Please provide a GITHUB_TOKEN or try again later."
+                    ) from exc
+                elif exc.response.status_code == 404:
+                    raise ValueError(f"GitHub repository '{owner}/{repo}' not found. Please verify the URL or repository visibility.") from exc
+                else:
+                    raise RuntimeError(f"GitHub API returned error {exc.response.status_code} for '{owner}/{repo}': {exc}") from exc
             except Exception as exc:
-                logger.warning(f"[GitHubConnector] Live GitHub API call failed for {owner}/{repo}: {exc}. Using simulated architectural extraction.")
-                # Fallback architectural inspection for offline or rate-limited runs
-                return {
-                    "owner": owner,
-                    "repo": repo,
-                    "full_name": f"{owner}/{repo}",
-                    "default_branch": "main",
-                    "description": f"Architectural analysis for {owner}/{repo}",
-                    "stars": 128,
-                    "language": "TypeScript / Python",
-                    "total_files": 42,
-                    "file_paths": [
-                        "README.md",
-                        "package.json",
-                        "src/index.ts",
-                        "src/core/engine.ts",
-                        "src/api/routes.ts",
-                        "src/db/models.ts",
-                        "tests/test_core.py",
-                    ],
-                    "key_files": [
-                        {
-                            "path": "README.md",
-                            "content": f"# {repo}\n\nHigh-performance decentralized multi-agent orchestration architecture.",
-                        },
-                        {
-                            "path": "src/core/engine.ts",
-                            "content": "export class AgentOrchestrator { async run() { /* DAG pipeline */ } }",
-                        },
-                    ],
-                }
+                logger.error(f"[GitHubConnector] Live GitHub API call failed for {owner}/{repo}: {exc}")
+                raise RuntimeError(f"Failed to access GitHub repository '{owner}/{repo}': {exc}") from exc
+
+    @staticmethod
+    def scan_local_directory(directory_path: str) -> Dict[str, Any]:
+        """
+        Inspects a local directory on disk, returns filtered relative file paths
+        and prioritized key file contents up to MAX_TOTAL_FILE_BYTES.
+        """
+        base_dir = Path(directory_path).resolve()
+        if not base_dir.exists():
+            raise FileNotFoundError(f"Target directory does not exist: {directory_path}")
+        if not base_dir.is_dir():
+            raise NotADirectoryError(f"Target path is not a directory: {directory_path}")
+
+        filtered_files: List[Dict[str, Any]] = []
+
+        for p in base_dir.rglob("*"):
+            if not p.is_file():
+                continue
+            try:
+                rel_path = p.relative_to(base_dir).as_posix()
+            except ValueError:
+                continue
+
+            if any(re.search(pat, rel_path) for pat in IGNORED_PATTERNS):
+                continue
+            if any(rel_path.lower().endswith(ext) for ext in BINARY_EXTENSIONS):
+                continue
+
+            try:
+                size = p.stat().st_size
+            except OSError:
+                size = 0
+
+            filtered_files.append({
+                "path": rel_path,
+                "abs_path": p,
+                "size": size,
+            })
+
+        def priority_score(item: Dict[str, Any]) -> int:
+            p = item["path"].lower()
+            if "readme" in p:
+                return 100
+            if p in ("package.json", "pyproject.toml", "cargo.toml", "go.mod", "pom.xml", "dockerfile"):
+                return 90
+            if any(p.endswith(ext) for ext in ("main.py", "index.ts", "index.js", "app.py", "main.go", "lib.rs")):
+                return 80
+            if "/" not in p:
+                return 70
+            if any(part in p for part in ("core", "src", "lib", "api", "models", "agents")):
+                return 60
+            return 10
+
+        sorted_files = sorted(filtered_files, key=priority_score, reverse=True)
+
+        total_bytes = 0
+        fetched_files: List[Dict[str, str]] = []
+
+        for f in sorted_files[:15]:
+            if total_bytes > MAX_TOTAL_FILE_BYTES:
+                break
+            try:
+                content = f["abs_path"].read_text(encoding="utf-8", errors="replace")
+                fetched_files.append({
+                    "path": f["path"],
+                    "content": content[:4000],
+                })
+                total_bytes += len(content)
+            except Exception as e:
+                logger.warning(f"Could not read local file {f['path']}: {e}")
+
+        return {
+            "owner": "local",
+            "repo": base_dir.name,
+            "full_name": f"local/{base_dir.name}",
+            "default_branch": "local",
+            "description": f"Local repository at {base_dir}",
+            "stars": 0,
+            "language": "Local Workspace",
+            "total_files": len(filtered_files),
+            "file_paths": [f["path"] for f in filtered_files[:100]],
+            "key_files": fetched_files,
+        }

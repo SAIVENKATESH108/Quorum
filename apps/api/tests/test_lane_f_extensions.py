@@ -82,3 +82,50 @@ async def test_mcp_plugin_registry_and_doi_verifier():
     assert result.success is True
     assert result.output["count"] == 2
     assert all(c["verified"] is True for c in result.output["verified_citations"])
+
+
+@pytest.mark.asyncio
+async def test_scan_local_directory(tmp_path):
+    """Verify GitHubConnector.scan_local_directory inspects and reads real local files."""
+    test_file = tmp_path / "main.py"
+    test_file.write_text("def run():\n    return 'quorum'", encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text("# Test Repo\nLocal workspace.", encoding="utf-8")
+
+    result = GitHubConnector.scan_local_directory(str(tmp_path))
+    assert result["owner"] == "local"
+    assert result["total_files"] == 2
+    assert "main.py" in result["file_paths"]
+    assert "README.md" in result["file_paths"]
+    assert any(f["path"] == "main.py" for f in result["key_files"])
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_preserves_code_context():
+    """Verify OrchestratorAgent forwards file_tree and key_files into child DAG nodes."""
+    from src.agents.orchestrator import OrchestratorAgent
+    from unittest.mock import AsyncMock
+    provider = AsyncMock()
+    orchestrator = OrchestratorAgent(provider=provider)
+
+    task = AgentTask(
+        task_type="decompose_query",
+        payload={
+            "query": "Document Quorum",
+            "source_type": "local_folder",
+            "source_ref": "d:/test",
+            "file_tree": ["src/main.py", "README.md"],
+            "key_files": [{"path": "README.md", "content": "# Quorum"}],
+        },
+    )
+
+    result = await orchestrator.run(task)
+    assert result.success is True
+    dag = result.output["dag"]
+    assert len(dag) > 0
+    # Verify child document_analysis nodes received the real code payload
+    for node in dag:
+        if node["agent_role"] == "document_analyzer":
+            assert node["payload"]["file_tree"] == ["src/main.py", "README.md"]
+            assert len(node["payload"]["key_files"]) == 1
+            assert node["payload"]["key_files"][0]["path"] == "README.md"

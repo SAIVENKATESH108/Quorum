@@ -164,7 +164,7 @@ class OrchestrationEngine:
         # Step 2: Transition status to PLANNING and emit websocket event
         await self._update_report_status(report_id, ReportStatus.PLANNING)
 
-        # If analyzing GitHub repository, fetch repository metadata and tree
+        # If analyzing GitHub repository or local folder, fetch repository metadata and tree
         key_files = []
         file_tree = []
         if source_type == "github_repo" and source_ref:
@@ -175,7 +175,19 @@ class OrchestrationEngine:
                 file_tree = repo_context.get("file_paths", [])
                 key_files = repo_context.get("key_files", [])
             except Exception as exc:
-                logger.warning(f"[ENGINE] GitHub fetching failed for {source_ref}: {exc}")
+                logger.error(f"[ENGINE] GitHub fetching failed for {source_ref}: {exc}")
+                await self._update_report_status(report_id, ReportStatus.FAILED, error=f"GitHub ingestion failed: {exc}")
+                return False
+        elif source_type == "local_folder" and source_ref:
+            try:
+                from src.services.github_connector import GitHubConnector
+                repo_context = GitHubConnector.scan_local_directory(source_ref)
+                file_tree = repo_context.get("file_paths", [])
+                key_files = repo_context.get("key_files", [])
+            except Exception as exc:
+                logger.error(f"[ENGINE] Local folder ingestion failed for {source_ref}: {exc}")
+                await self._update_report_status(report_id, ReportStatus.FAILED, error=f"Local folder ingestion failed: {exc}")
+                return False
 
         # Step 3: Run OrchestratorAgent to decompose query into topological sub-tasks
         orchestrator_agent = AgentFactory.create(AgentRole.ORCHESTRATOR, self.provider)

@@ -29,6 +29,8 @@ class OrchestratorAgent(Agent):
         # --- Branch A: Codebase & GitHub Repo Architecture Documentation Pipeline ---
         if source_type in ("github_repo", "local_folder"):
             repo_name = source_ref or query
+            file_tree = task.payload.get("file_tree", []) if task.payload else []
+            key_files = task.payload.get("key_files", []) if task.payload else []
             dag_nodes: List[TaskNode] = []
             analysis_node_ids: List[str] = []
 
@@ -54,6 +56,8 @@ class OrchestratorAgent(Agent):
                             "query": query,
                             "source_type": source_type,
                             "source_ref": source_ref,
+                            "file_tree": file_tree,
+                            "key_files": key_files,
                         },
                     )
                 )
@@ -66,7 +70,11 @@ class OrchestratorAgent(Agent):
                     task_type="fact_checking",
                     agent_role=AgentRole.FACT_CHECKER,
                     depends_on=list(analysis_node_ids),
-                    payload={"query": f"Codebase Architecture Specification for {repo_name}"},
+                    payload={
+                        "query": f"Codebase Architecture Specification for {repo_name}",
+                        "file_tree": file_tree,
+                        "key_files": key_files,
+                    },
                 )
             )
 
@@ -78,7 +86,12 @@ class OrchestratorAgent(Agent):
                     task_type="report_synthesis",
                     agent_role=AgentRole.WRITER,
                     depends_on=[fact_check_id],
-                    payload={"query": f"Technical Architecture & Research Paper: {repo_name}"},
+                    payload={
+                        "query": f"Technical Architecture & Research Paper: {repo_name}",
+                        "repo_name": repo_name,
+                        "file_tree": file_tree,
+                        "key_files": key_files,
+                    },
                 )
             )
 
