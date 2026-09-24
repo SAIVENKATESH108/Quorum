@@ -26,5 +26,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json(serverStore.getSources(category));
+  return NextResponse.json(await serverStore.getSources(category));
 }

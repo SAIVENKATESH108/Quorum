@@ -24,7 +24,7 @@ export async function GET(
     }
   }
 
-  const reports = serverStore.getReports(projectId);
+  const reports = await serverStore.getReports(projectId);
   return NextResponse.json(reports);
 }
 
@@ -54,7 +54,7 @@ export async function POST(
 
   try {
     const payload = JSON.parse(body);
-    const report = serverStore.createReport({
+    const report = await serverStore.createReport({
       query: payload.query,
       projectId,
       sourceType: payload.source_type,

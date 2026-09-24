@@ -24,7 +24,7 @@ export async function GET(
     }
   }
 
-  const project = serverStore.getProject(projectId);
+  const project = await serverStore.getProject(projectId);
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
@@ -62,7 +62,7 @@ export async function PATCH(
       }
     }
 
-    const updated = serverStore.updateProject(projectId, title);
+    const updated = await serverStore.updateProject(projectId, title);
     if (!updated) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
@@ -95,7 +95,7 @@ export async function DELETE(
     }
   }
 
-  const deleted = serverStore.deleteProject(projectId);
+  const deleted = await serverStore.deleteProject(projectId);
   if (!deleted) {
     // DELETE is idempotent: the requested project is already absent.
     return new NextResponse(null, { status: 204 });

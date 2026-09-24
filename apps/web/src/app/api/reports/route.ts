@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const reports = serverStore.getReports();
+  const reports = await serverStore.getReports();
   return NextResponse.json(reports);
 }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const created = serverStore.createReport({
+    const created = await serverStore.createReport({
       query,
       projectId,
       sourceType,

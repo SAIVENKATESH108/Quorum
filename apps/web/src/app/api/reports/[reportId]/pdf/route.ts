@@ -52,7 +52,7 @@ export async function GET(
   }
 
   // 2. Compile the PDF for a report the agent pipeline actually produced.
-  const report = serverStore.getReport(reportId);
+  const report = await serverStore.getReport(reportId);
   if (!report) {
     return NextResponse.json(
       {

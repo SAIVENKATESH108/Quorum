@@ -66,7 +66,7 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse | n
     // Fall through to local store
   }
 
-  return serverStore.getReport(reportId);
+  return await serverStore.getReport(reportId);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

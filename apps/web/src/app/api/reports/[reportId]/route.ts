@@ -25,7 +25,7 @@ export async function GET(
   }
 
   // 2. Check serverStore for dynamically created reports
-  const stored = serverStore.getReport(reportId);
+  const stored = await serverStore.getReport(reportId);
   if (stored) {
     return NextResponse.json(stored);
   }
@@ -59,7 +59,7 @@ export async function DELETE(
     }
   }
 
-  const deleted = serverStore.deleteReport(reportId);
+  const deleted = await serverStore.deleteReport(reportId);
   if (!deleted) {
     return NextResponse.json({ error: "Report not found" }, { status: 404 });
   }

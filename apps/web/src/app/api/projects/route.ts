@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const projects = serverStore.getProjects();
+  const projects = await serverStore.getProjects();
   return NextResponse.json(projects);
 }
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const newProject = serverStore.createProject(title);
+    const newProject = await serverStore.createProject(title);
     return NextResponse.json(newProject, { status: 201 });
   } catch (err: unknown) {
     return NextResponse.json(
