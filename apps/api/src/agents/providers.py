@@ -270,6 +270,7 @@ class OpenRouterProvider(AIProvider):
         model: str = "nvidia/nemotron-3-ultra-550b-a55b:free",
         **kwargs,
     ):
+        kwargs.setdefault("max_retries", 1)
         super().__init__(**kwargs)
         self.api_key = api_key or settings.OPENROUTER_API_KEY or ""
         self.model = model
@@ -283,7 +284,7 @@ class OpenRouterProvider(AIProvider):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
@@ -301,6 +302,9 @@ class OpenRouterProvider(AIProvider):
             )
             res.raise_for_status()
             data = res.json()
+            if "error" in data or "choices" not in data or not data["choices"]:
+                err_msg = data.get("error", {}).get("message", "OpenRouter model unavailable or overloaded")
+                raise ProviderUnavailableError(f"OpenRouter upstream unavailable: {err_msg}")
             return data["choices"][0]["message"]["content"]
 
 
@@ -569,10 +573,10 @@ def get_default_provider(mode: str = "cloud") -> AIProvider:
         ])
 
     providers: list[AIProvider] = [
+        NeuralPulseProvider(),
         OpenRouterProvider(),
         GeminiProvider(),
         OpenAIProvider(),
-        NeuralPulseProvider(),
         OllamaProvider(),
     ]
     return ProviderFallbackChain(providers)

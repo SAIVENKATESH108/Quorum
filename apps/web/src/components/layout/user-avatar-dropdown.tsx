@@ -57,8 +57,13 @@ export function UserAvatarDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [preferredModel, setPreferredModel] = useState<string>("neural_pulse");
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -90,6 +95,12 @@ export function UserAvatarDropdown() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
+
+  if (!mounted) {
+    return (
+      <div className="h-8 w-20 rounded-full bg-surface-subtle/60 border border-border/40 animate-pulse" />
+    );
+  }
 
   if (!user) {
     return (

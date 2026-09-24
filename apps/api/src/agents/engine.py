@@ -487,7 +487,7 @@ class OrchestrationEngine:
     async def _sync_pipeline_stage(self, report_id: uuid.UUID, ready_nodes: List[TaskNode]) -> None:
         """Map ready node roles to overall Report status stages."""
         roles = {n.agent_role for n in ready_nodes}
-        if AgentRole.RESEARCHER in roles:
+        if AgentRole.RESEARCHER in roles or AgentRole.DOCUMENT_ANALYZER in roles:
             await self._update_report_status(report_id, ReportStatus.RESEARCHING)
         elif AgentRole.FACT_CHECKER in roles:
             await self._update_report_status(report_id, ReportStatus.FACT_CHECKING)

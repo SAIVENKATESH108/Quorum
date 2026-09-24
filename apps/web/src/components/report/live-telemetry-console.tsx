@@ -49,14 +49,19 @@ export function LiveTelemetryConsole({
   const [copied, setCopied] = useState<boolean>(false);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Generate deterministic, verified telemetry logs from the report's real pipeline execution
   const baseLogs: LogEntry[] = useMemo(() => {
-    const baseTime = createdAt ? new Date(createdAt).getTime() : Date.now() - 60000;
+    const baseTime = createdAt ? new Date(createdAt).getTime() : 1774350000000;
     const formatTime = (offsetMs: number) => {
       const d = new Date(baseTime + offsetMs);
-      return d.toTimeString().split(" ")[0] + "." + String(d.getMilliseconds()).padStart(3, "0");
+      return d.toISOString().slice(11, 19) + "." + String(d.getUTCMilliseconds()).padStart(3, "0");
     };
 
     const logs: LogEntry[] = [
@@ -242,8 +247,8 @@ export function LiveTelemetryConsole({
       else if (agentRole.includes("writer")) level = "WRITER";
 
       const timeStr = ev.timestamp
-        ? new Date(ev.timestamp).toTimeString().split(" ")[0] + "." + String(new Date(ev.timestamp).getMilliseconds()).padStart(3, "0")
-        : "Live";
+        ? new Date(ev.timestamp).toISOString().slice(11, 19) + "." + String(new Date(ev.timestamp).getUTCMilliseconds()).padStart(3, "0")
+        : "LIVE";
 
       return {
         id: `ev-${idx}-${ev.timestamp}`,
