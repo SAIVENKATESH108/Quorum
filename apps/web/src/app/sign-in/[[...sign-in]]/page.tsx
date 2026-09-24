@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
+import { GuestJudgeCallout } from "@/components/guest-judge-button";
 
 export const metadata: Metadata = {
   title: "Sign In — Quorum AI Intelligence Platform",
@@ -36,6 +37,9 @@ export default function SignInPage() {
             Autonomous multi-agent research platform. Sign in to launch parallel swarms and synthesize verified intelligence.
           </p>
         </header>
+
+        {/* 1-Click Judge / Demo Evaluation Callout */}
+        <GuestJudgeCallout />
 
         <div className="flex justify-center"><AuthForm mode="login" /></div>
 

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Only the landing page and native auth flows are public. All workspace and API data
-// must be associated with an authenticated Clerk user.
+// All workspace and telemetry views are public in read-only mode so hackathon judges
+// and evaluators can view projects, reports, evidence, agent mesh, and settings without hitting auth walls.
 const isPublicPath = (pathname: string) =>
   pathname === "/" ||
   pathname.startsWith("/sign-in") ||
   pathname.startsWith("/sign-up") ||
+  pathname.startsWith("/projects") ||
+  pathname.startsWith("/reports") ||
+  pathname.startsWith("/sources") ||
+  pathname.startsWith("/agents") ||
+  pathname.startsWith("/settings") ||
   pathname.startsWith("/api/") ||
   pathname === "/favicon.ico" ||
   pathname.startsWith("/_next/");

@@ -73,23 +73,60 @@ async def get_current_user_from_token(token: Optional[str], db: Optional[AsyncSe
     except ValueError:
         pass
 
-    # Handle test / mock token prefixes - isolated to dedicated dev user
-    if token.startswith("test_") or token == "mock_token":
+    # Handle base64 encoded JSON session objects
+    import base64
+    import json
+    try:
+        raw_json = base64.b64decode(token).decode("utf-8")
+        obj = json.loads(raw_json)
+        if isinstance(obj, dict) and "email" in obj:
+            email = obj["email"]
+            name = obj.get("name", "Quorum User")
+            user_id = uuid.UUID(obj["id"]) if "id" in obj and obj["id"] else uuid.uuid5(uuid.NAMESPACE_DNS, email)
+            session = db or async_session_maker()
+            close_session = db is None
+            try:
+                stmt = select(User).where((User.id == user_id) | (User.email == email))
+                res = await session.execute(stmt)
+                user = res.scalars().first()
+                if not user:
+                    user = User(
+                        id=user_id,
+                        email=email,
+                        name=name,
+                        role=obj.get("role", "member"),
+                    )
+                    session.add(user)
+                    await session.commit()
+                    await session.refresh(user)
+                return user
+            finally:
+                if close_session:
+                    await session.close()
+    except Exception:
+        pass
+
+    # Handle test / mock / judge token prefixes
+    if token.startswith("test_") or token == "mock_token" or token.startswith("judge") or token.startswith("guest"):
         close_session = False
         session = db
         if session is None:
             session = async_session_maker()
             close_session = True
 
+        is_judge = token.startswith("judge") or token.startswith("guest")
+        email = "judge@quorum.ai" if is_judge else "dev@quorum.local"
+        name = "Guest Judge" if is_judge else "Local Developer"
         try:
-            stmt = select(User).where(User.email == "dev@quorum.local")
+            stmt = select(User).where(User.email == email)
             res = await session.execute(stmt)
             dev_user = res.scalars().first()
             if not dev_user:
                 dev_user = User(
-                    id=uuid.uuid5(uuid.NAMESPACE_DNS, "dev@quorum.local"),
-                    email="dev@quorum.local",
-                    name="Local Developer",
+                    id=uuid.uuid5(uuid.NAMESPACE_DNS, email),
+                    email=email,
+                    name=name,
+                    role="member",
                 )
                 session.add(dev_user)
                 await session.commit()

@@ -15,10 +15,11 @@ export async function POST(request: NextRequest) {
         role: "member",
       };
       const token = Buffer.from(JSON.stringify(user)).toString("base64");
+      const isSecure = request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
       const result = NextResponse.json({ user });
       result.cookies.set("quorum_session", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecure,
         sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24,
@@ -50,10 +51,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response.ok) return NextResponse.json(data, { status: response.status });
+    const isSecure = request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
     const result = NextResponse.json({ user: data.user });
     result.cookies.set("quorum_session", data.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24,

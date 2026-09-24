@@ -34,9 +34,11 @@ export function backendHeaders(request: NextRequest): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const authorization = request.headers.get("authorization");
   const cookie = request.headers.get("cookie");
-  const session = cookie?.match(/(?:^|;\s*)quorum_session=([^;]+)/)?.[1];
+  const sessionCookie = request.cookies?.get("quorum_session")?.value;
+  const session = sessionCookie || cookie?.match(/(?:^|;\s*)quorum_session=([^;]+)/)?.[1];
   if (authorization) headers.authorization = authorization;
   else if (session) headers.authorization = `Bearer ${decodeURIComponent(session)}`;
   if (cookie) headers.cookie = cookie;
+  else if (sessionCookie) headers.cookie = `quorum_session=${sessionCookie}`;
   return headers;
 }

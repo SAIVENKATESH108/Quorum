@@ -2,29 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
 
 export async function GET(request: NextRequest) {
-  const headers = backendHeaders(request);
-  if (!headers.authorization) {
+  const sessionCookie = request.cookies.get("quorum_session")?.value;
+  const authHeader = request.headers.get("authorization");
+
+  if (!authHeader && !sessionCookie) {
     return NextResponse.json(null);
   }
 
+  // If session cookie is a valid base64-encoded user object (e.g. guest judge session)
+  if (sessionCookie) {
+    try {
+      const decoded = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
+      if (decoded && decoded.email) {
+        return NextResponse.json(decoded);
+      }
+    } catch {
+      // not base64 json, proceed to backend API
+    }
+  }
+
+  const headers = backendHeaders(request);
   const apiUrl = backendApiUrl();
   if (!apiUrl) {
-    const cookie = request.cookies.get("quorum_session")?.value;
-    if (cookie) {
-      try {
-        const decoded = JSON.parse(Buffer.from(cookie, "base64").toString("utf-8"));
-        if (decoded && decoded.email) {
-          return NextResponse.json(decoded);
-        }
-      } catch {
-        return NextResponse.json({
-          id: "user-primary",
-          email: "researcher@quorum.ai",
-          name: "Quorum Researcher",
-          role: "member",
-        });
-      }
-    }
     return NextResponse.json(null);
   }
 
