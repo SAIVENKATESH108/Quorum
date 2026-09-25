@@ -345,3 +345,234 @@ class ReportSource(Base):
     report: Mapped["Report"] = relationship("Report", back_populates="report_sources")
     source: Mapped["Source"] = relationship("Source", back_populates="source_reports")
     cited_in_section: Mapped[Optional["ReportSection"]] = relationship("ReportSection")
+
+
+# ============================================================================
+# Research Studio Models
+# ============================================================================
+
+class ResearchJobStatus(str, enum.Enum):
+    """Lifecycle states for a Research Paper generation job."""
+    DRAFT = "draft"
+    SCRUB_REQUIRED = "scrub_required"
+    AWAITING_CONSENT = "awaiting_consent"
+    PLANNING = "planning"
+    RETRIEVING_SOURCES = "retrieving_sources"
+    EXTRACTING_EVIDENCE = "extracting_evidence"
+    VERIFYING_SOURCES = "verifying_sources"
+    SYNTHESIZING = "synthesizing"
+    CITATION_VALIDATION = "citation_validation"
+    GENERATING_ARTIFACTS = "generating_artifacts"
+    NEEDS_REVIEW = "needs_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    FAILED = "failed"
+
+
+class ResearchPaperJob(Base):
+    """
+    Persisted research paper generation job.
+    Tracks every stage from user input through evidence extraction to final artifact.
+    """
+    __tablename__ = "research_paper_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[ResearchJobStatus] = mapped_column(
+        SQLEnum(
+            ResearchJobStatus,
+            name="researchjobstatus",
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        default=ResearchJobStatus.DRAFT,
+        nullable=False,
+    )
+    # Paper metadata (user-supplied)
+    paper_title: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    authors: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    research_question: Mapped[str] = mapped_column(Text, nullable=False)
+    domain_keywords: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    paper_type: Mapped[str] = mapped_column(String(80), default="literature_review", nullable=False)
+    depth: Mapped[str] = mapped_column(String(50), default="standard", nullable=False)
+    citation_format: Mapped[str] = mapped_column(String(30), default="ieee", nullable=False)
+    date_from: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    date_to: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    preferred_source_types: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    excluded_domains: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+
+    # PII scrub result
+    scrub_findings: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    sanitized_question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    consent_confirmed: Mapped[bool] = mapped_column(default=False, nullable=False)
+    consent_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Research plan (persisted before retrieval begins)
+    research_plan: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    executed_queries: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
+
+    # Provider result summary
+    providers_attempted: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    providers_succeeded: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    providers_failed: Mapped[Optional[Dict[str, str]]] = mapped_column(JSONB, nullable=True)
+    sources_retrieved: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    sources_excluded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Evidence and synthesis quality metrics
+    evidence_coverage_pct: Mapped[Optional[float]] = mapped_column(nullable=True)
+    citation_validity_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    citation_total_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    flagged_claims_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Generated content
+    paper_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    paper_outline: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    artifact_pdf_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+
+    # Citation validation result
+    citation_validation_result: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
+    # Review & approval
+    review_checklist: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    reviewer_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Failure
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    failed_stage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True
+    )
+
+    # Relationships
+    report: Mapped["Report"] = relationship("Report")
+    evidence_blocks: Mapped[List["ResearchEvidence"]] = relationship(
+        "ResearchEvidence",
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="ResearchEvidence.created_at",
+    )
+    claim_mappings: Mapped[List["ClaimEvidenceMapping"]] = relationship(
+        "ClaimEvidenceMapping",
+        back_populates="job",
+        cascade="all, delete-orphan",
+    )
+
+
+class ResearchEvidence(Base):
+    """
+    A single evidence block extracted from a real retrieved source.
+    This is the ground truth from which paper claims are written.
+    """
+    __tablename__ = "research_evidence"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("research_paper_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Source provenance (from provider retrieval — never invented)
+    provider: Mapped[str] = mapped_column(String(60), nullable=False)  # crossref | openalex | arxiv | semanticscholar
+    source_identifier: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)  # DOI, arXiv ID, etc.
+    canonical_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    authors: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    publisher: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    publication_date: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    source_class: Mapped[str] = mapped_column(String(60), nullable=False)  # peer_reviewed | preprint | ...
+    access_level: Mapped[str] = mapped_column(String(30), nullable=False)  # full_text | abstract_only | snippet_only | metadata_only
+
+    # Extracted text
+    retrieved_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # abstract or available text
+    location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # page/section if known
+
+    # Quality
+    topic_tags: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+    inclusion_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    exclusion_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_excluded: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    retrieval_timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    job: Mapped["ResearchPaperJob"] = relationship("ResearchPaperJob", back_populates="evidence_blocks")
+    claim_mappings: Mapped[List["ClaimEvidenceMapping"]] = relationship(
+        "ClaimEvidenceMapping",
+        back_populates="evidence",
+        cascade="all, delete-orphan",
+    )
+
+
+class ClaimEvidenceMapping(Base):
+    """
+    Claim-Evidence Matrix row.
+    Every substantive factual claim in the generated paper must have a row here.
+    """
+    __tablename__ = "claim_evidence_mappings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("research_paper_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evidence_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("research_evidence.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    claim_id: Mapped[str] = mapped_column(String(40), nullable=False)  # e.g. "C001"
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_type: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="descriptive"
+    )  # descriptive | quantitative | causal | comparative | interpretive | recommendation
+
+    # Support classification
+    citation_strength: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="unsupported"
+    )  # directly_supported | partially_supported | contextual_only | unsupported
+
+    requires_review: Mapped[bool] = mapped_column(default=False, nullable=False)
+    section_reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    inline_citation_marker: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # e.g. "[1]"
+
+    # Validation output
+    validation_passed: Mapped[Optional[bool]] = mapped_column(nullable=True)
+    validation_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    job: Mapped["ResearchPaperJob"] = relationship("ResearchPaperJob", back_populates="claim_mappings")
+    evidence: Mapped[Optional["ResearchEvidence"]] = relationship(
+        "ResearchEvidence", back_populates="claim_mappings"
+    )
+

@@ -1,7 +1,8 @@
 import hashlib
 import secrets
-import uuid
+
 import psycopg2
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)

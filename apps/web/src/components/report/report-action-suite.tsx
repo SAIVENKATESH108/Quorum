@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { ReportDetailResponse, ReportStatus } from "@/lib/api-client";
 import { ReportChatDrawer } from "./report-chat-drawer";
+import { ResearchStudioModal } from "@/components/research-studio/research-studio-modal";
 
 interface ReportActionSuiteProps {
   report: ReportDetailResponse;
@@ -43,6 +44,7 @@ export function ReportActionSuite({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [isIeeeModalOpen, setIsIeeeModalOpen] = useState(false);
+  const [isResearchStudioOpen, setIsResearchStudioOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [docFormat, setDocFormat] = useState<"college" | "enterprise">("enterprise");
   const [isCompleting, setIsCompleting] = useState(false);
@@ -277,6 +279,17 @@ ${(report.sources || [])
           >
             <GraduationCap className="h-3.5 w-3.5 text-purple-500" />
             <span>IEEE Research Paper</span>
+          </Button>
+
+          {/* 3b. Research Studio — Evidence-First Paper Generator */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsResearchStudioOpen(true)}
+            className="text-xs gap-1.5 h-8.5 font-medium border-purple-500/30 hover:border-purple-500 hover:text-purple-300 text-purple-300 cursor-pointer bg-purple-500/5"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+            <span>Research Studio</span>
           </Button>
 
           {/* 4. Review / View PDF Button */}
@@ -627,6 +640,13 @@ ${(report.sources || [])
         onClose={() => setIsChatOpen(false)}
         reportId={reportId}
         reportQuery={report.query}
+      />
+
+      {/* Research Studio Modal — Evidence-First Workflow */}
+      <ResearchStudioModal
+        report={report}
+        isOpen={isResearchStudioOpen}
+        onClose={() => setIsResearchStudioOpen(false)}
       />
     </div>
   );

@@ -7,6 +7,7 @@ from src.api.chat import router as chat_router
 from src.api.auth import router as auth_router
 from src.api.projects import router as projects_router
 from src.api.reports import router as reports_router
+from src.api.research_jobs import router as research_jobs_router
 from src.api.sources import router as sources_router
 from src.api.websocket import router as websocket_router
 from src.core.config import settings
@@ -81,6 +82,7 @@ app.include_router(reports_router)
 app.include_router(sources_router)
 app.include_router(chat_router)
 app.include_router(websocket_router)
+app.include_router(research_jobs_router)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])

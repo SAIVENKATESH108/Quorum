@@ -1,8 +1,8 @@
-import urllib.request
-import urllib.parse
 import http.cookiejar
 import json
 import sys
+import urllib.parse
+import urllib.request
 
 BASE = 'http://localhost:3005'
 
