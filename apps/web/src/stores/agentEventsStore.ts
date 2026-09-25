@@ -130,6 +130,7 @@ export const useAgentEventsStore = create<AgentEventsState>((set) => ({
             "fact_checking",
             "writing",
             "complete",
+            "needs_review",
             "failed",
           ].includes(rawStatus)
         ) {

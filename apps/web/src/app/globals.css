@@ -118,6 +118,7 @@
     color: var(--text-primary);
     transition: background-color 0.3s ease, color 0.3s ease;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
   }
 
   /* Smooth transition for theme switches on surfaces and cards */

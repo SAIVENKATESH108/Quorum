@@ -9,7 +9,7 @@ import {
   useAgentEventsStore,
 } from "@/stores/agentEventsStore";
 
-const TERMINAL_STATUSES: ReportStatus[] = ["complete", "failed"];
+const TERMINAL_STATUSES: ReportStatus[] = ["complete", "needs_review", "failed"];
 const EMPTY_EVENTS: ReportEventPayload[] = [];
 
 function resolveWebSocketBaseUrl(): string | null {
@@ -83,9 +83,15 @@ export function useReportEvents(
 
       // If WebSocket is not deployed in current environment, activate resilient Neon polling fallback
       if (!wsBase) {
+        // Informational only — not an error. Production deployments without a
+        // dedicated WebSocket server use HTTP polling as the fallback transport.
+        console.info(
+          "[Quorum] WebSocket transport unavailable (NEXT_PUBLIC_WS_URL not set). "
+          + "Using HTTP polling fallback for pipeline status updates."
+        );
         setConnectionStatus(reportId, "connected");
 
-        // Polling fallback to keep pipeline alive on serverless Vercel
+        // Polling fallback: polls the report endpoint every 3 s until terminal
         const poll = async () => {
           if (isManuallyClosedRef.current || !reportId) return;
           try {
@@ -100,8 +106,8 @@ export function useReportEvents(
                     report_id: reportId,
                     status: polledStatus,
                     metadata: {
-                      message: `Pipeline synchronized: ${polledStatus}`,
-                      source: "neon_database_sync",
+                      message: `Pipeline polled: ${polledStatus}`,
+                      source: "http_polling_fallback",
                     },
                   },
                   timestamp: new Date().toISOString(),
@@ -116,7 +122,7 @@ export function useReportEvents(
               }
             }
           } catch {
-            // Polling retry
+            // Polling retry — network blip, will retry on next interval
           }
         };
 

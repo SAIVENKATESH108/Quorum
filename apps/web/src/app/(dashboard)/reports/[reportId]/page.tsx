@@ -101,10 +101,10 @@ export default async function ReportDetailPage({ params }: PageProps) {
   const reportStatus = report.status.replace(/_/g, " ");
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-2 sm:px-4 py-4">
+    <div className="space-y-8 w-full overflow-x-hidden py-2">
       {/* 1. Server-Rendered Semantic HTML (Instantly visible to curl, judges, and crawlers without JS) */}
       <article
-        className="rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-sm space-y-6"
+        className="rounded-2xl border border-border bg-surface p-4 sm:p-6 md:p-8 shadow-sm space-y-6 min-w-0"
         aria-label="Server-Rendered Verified Intelligence Report"
       >
         <header className="space-y-3 pb-6 border-b border-border/80">

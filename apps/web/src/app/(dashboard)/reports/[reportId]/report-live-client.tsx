@@ -24,6 +24,7 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
   const queryClient = useQueryClient();
   const router = useRouter();
   const setSelectedReportId = useUiStore((state) => state.setSelectedReportId);
+  const handleIncomingEvent = useAgentEventsStore((state) => state.handleIncomingEvent);
 
   // Sync selected report id in ephemeral UI store
   useEffect(() => {
@@ -32,25 +33,55 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
     }
   }, [reportId, setSelectedReportId]);
 
-  const reportStatus = initialReport?.status;
-  const reportQuery = initialReport?.query;
+  // ── KEY FIX ────────────────────────────────────────────────────────────────
+  // Seed the Zustand store with the persisted DB status on first client mount.
+  // Without this, the store is empty after a page refresh and the pipeline
+  // stage visualizer falls back to "pending" until a WebSocket event arrives —
+  // which never comes for already-completed reports (WS is skipped for terminal
+  // statuses). With the seed, the store immediately reflects the real status
+  // so PipelineStages renders the correct DONE/FAILED indicators.
+  const initialStatus = initialReport?.status;
+  useEffect(() => {
+    if (reportId && initialStatus) {
+      handleIncomingEvent(reportId, {
+        type: "report_status",
+        data: {
+          report_id: reportId,
+          status: initialStatus,
+          metadata: {
+            message: "Seeded from server-rendered initial report status",
+            source: "ssr_seed",
+          },
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+    // Intentionally only re-run when the server-provided status changes (e.g.
+    // after router.refresh()). handleIncomingEvent is a stable Zustand action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportId, initialStatus]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const reportEventsOptions = useMemo(
-    () => ({ status: reportStatus, query: reportQuery }),
-    [reportStatus, reportQuery]
+    () => ({ status: initialStatus, query: initialReport?.query }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initialStatus, initialReport?.query]
   );
 
-  // Real-time WebSocket hook: Subscribes to live execution events
+  // Real-time WebSocket hook: subscribes to live execution events.
+  // For terminal statuses (complete/failed), the hook exits early and the seed
+  // above is the only status source.
   const {
     status: liveStatus,
     connectionState,
     events,
   } = useReportEvents(reportId, reportEventsOptions);
 
-  // Effective status considers live WebSocket stream first, then server initial data
+  // Effective status: live WS stream > seeded store > server SSR > safe fallback
   const effectiveStatus: ReportStatus =
     liveStatus || initialReport?.status || "complete";
 
-  // Invalidate queries if status transitions to complete or needs_review
+  // Invalidate queries when the pipeline reaches a terminal state
   useEffect(() => {
     if (effectiveStatus === "complete" || effectiveStatus === "needs_review") {
       queryClient.invalidateQueries({
@@ -60,7 +91,7 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
     }
   }, [effectiveStatus, reportId, queryClient, router]);
 
-  // Extract parallel research tasks from Zustand store for the Researching stage
+  // Parallel research task sub-cards
   const allTasks = useAgentEventsStore((state) => state.tasks);
   const researchTasks = useMemo(() => {
     return Object.values(allTasks).filter(
@@ -72,7 +103,7 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
     );
   }, [allTasks, reportId]);
 
-  // Retry mutation handler if report failed
+  // Retry: re-queue the same query into a new report
   const createReportMutation = useCreateReport(initialReport?.project_id);
   const handleRetry = () => {
     if (!initialReport?.project_id || !initialReport?.query) return;
@@ -90,8 +121,8 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
   const isComplete = effectiveStatus === "complete" || effectiveStatus === "needs_review";
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto px-1 sm:px-2">
-      {/* 1. Dashboard Header */}
+    <div className="space-y-8 animate-in fade-in duration-500 w-full max-w-full overflow-x-hidden">
+      {/* 1. Report Dashboard Header */}
       <ReportHeader
         reportId={reportId}
         query={initialReport.query}
@@ -101,13 +132,13 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         onRetry={handleRetry}
       />
 
-      {/* 2. Post-Generation Action Suite: Regenerate, Swarm Chat, College vs Enterprise Docs, IEEE Novelty Paper, PDF Viewer, & Approval */}
+      {/* 2. Post-Generation Action Suite (only shown for completed reports) */}
       {isComplete && (
         <section aria-label="Post-Generation Action Suite">
           <ReportActionSuite
             report={displayReport}
             onRetry={handleRetry}
-            onStatusChange={(newStatus) => {
+            onStatusChange={() => {
               queryClient.invalidateQueries({
                 queryKey: reportKeys.detail(reportId),
               });
@@ -117,8 +148,8 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         </section>
       )}
 
-      {/* 3. Top-level Pipeline Stages & Parallel Research Multi-Agent Sub-Cards */}
-      <section aria-label="Orchestration Pipeline Visualization">
+      {/* 3. Pipeline Stage Visualization */}
+      <section aria-label="Orchestration Pipeline Visualization" className="w-full min-w-0">
         <PipelineStages
           status={effectiveStatus}
           query={initialReport.query}
@@ -127,8 +158,8 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         />
       </section>
 
-      {/* 3. Real-time Process Initialization & Swarm Telemetry Console */}
-      <section aria-label="Real-time Execution Telemetry Console">
+      {/* 4. Live Telemetry Console */}
+      <section aria-label="Real-time Execution Telemetry Console" className="w-full min-w-0">
         <LiveTelemetryConsole
           reportId={reportId}
           query={initialReport.query}
@@ -138,8 +169,8 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         />
       </section>
 
-      {/* 4. Live Streaming Activity Feed */}
-      <section aria-label="Real-time Activity Stream">
+      {/* 5. Activity Feed */}
+      <section aria-label="Real-time Activity Stream" className="w-full min-w-0">
         <ActivityFeed
           events={events}
           overallStatus={effectiveStatus}
@@ -147,9 +178,9 @@ export function ReportLiveClient({ initialReport, reportId }: ReportLiveClientPr
         />
       </section>
 
-      {/* 5. Interactive Report View */}
+      {/* 6. Completed Report Body */}
       {isComplete && (
-        <section aria-label="Finished Research Report">
+        <section aria-label="Finished Research Report" className="w-full min-w-0">
           <ReportView report={displayReport} />
         </section>
       )}
