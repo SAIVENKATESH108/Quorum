@@ -3,7 +3,7 @@ import logging
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,7 +94,7 @@ async def list_projects(
     """Retrieve all projects belonging to the authenticated user or workspace."""
     stmt = select(Project).order_by(Project.created_at.desc())
     if current_user.role == UserRole.GUEST.value:
-        stmt = stmt.where(Project.is_guest_demo == True)
+        stmt = stmt.where(Project.is_guest_demo.is_(True))
     elif current_user.role == UserRole.ADMIN.value:
         pass
     else:
@@ -238,7 +238,7 @@ async def list_project_reports(
         .order_by(Report.created_at.desc())
     )
     if current_user.role == UserRole.GUEST.value:
-        stmt = stmt.where(Report.is_guest_demo == True)
+        stmt = stmt.where(Report.is_guest_demo.is_(True))
     result = await db.execute(stmt)
     reports = result.scalars().all()
     return [ReportSummaryResponse.model_validate(r) for r in reports]

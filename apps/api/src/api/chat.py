@@ -5,15 +5,13 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_user_report
 from src.core.security import get_current_user_from_token, security_bearer
-from src.db.models import Project, Report, User, UserRole
+from src.db.models import Report, User, UserRole
 from src.db.session import get_db
 from src.services.rag.chat_engine import (
-    ABSTENTION_TEXT,
     SwarmChatEngine,
     SwarmChatResult,
 )

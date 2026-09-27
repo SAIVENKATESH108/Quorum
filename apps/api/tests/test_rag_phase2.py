@@ -24,11 +24,10 @@ from src.db.models import Project, RAGChunk, User
 from src.db.session import async_session_maker
 from src.services.rag.chat_engine import (
     ABSTENTION_CODEBASE,
-    ABSTENTION_REPORT,
     SwarmChatEngine,
 )
 from src.services.rag.code_chunker import CodeChunker
-from src.services.rag.code_policy import IndexingPolicy, IngestionDiagnostics, SkipReason
+from src.services.rag.code_policy import SkipReason
 from src.services.rag.codebase_indexer import CodebaseIndexer, ConsentRequiredError
 from src.services.rag.embeddings import EmbeddingProvider
 from src.services.rag.vector_store import PgVectorStoreProvider

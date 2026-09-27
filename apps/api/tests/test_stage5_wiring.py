@@ -1,14 +1,12 @@
-import os
 import uuid
 import datetime
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
 
 import jwt
 from src.core.config import settings
 from src.core.redis import close_redis_client
-from src.db.models import Project, Report, ReportSource, ReportStatus, Source, User, UserRole
+from src.db.models import Project, Report, ReportSource, ReportStatus, Source, User
 from src.db.session import async_session_maker
 from src.main import app
 

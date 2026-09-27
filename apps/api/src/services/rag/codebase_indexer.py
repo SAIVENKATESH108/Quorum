@@ -10,17 +10,14 @@ Enforces:
 6. SQL-level isolation and transactional upsert.
 """
 
-import hashlib
 import logging
-import re
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 import uuid
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import RAGChunk
@@ -238,7 +235,7 @@ class CodebaseIndexer:
                 encoded_path = quote(c.relative_path, safe="/")
                 # Immutable GitHub blob URL pinned to verified commit SHA
                 blob_url = f"https://github.com/{owner}/{repo}/blob/{resolved_commit_sha}/{encoded_path}#L{c.start_line}-L{c.end_line}"
-                
+
                 db_chunk = RAGChunk(
                     chunk_id=c.chunk_id,
                     project_id=project_id,
@@ -388,7 +385,7 @@ class CodebaseIndexer:
         for c, emb in zip(all_chunks, embeddings):
             # Local citations are pure virtual paths, NEVER a fake URL or Git SHA
             local_ref = f"{c.relative_path}:L{c.start_line}-L{c.end_line}"
-            
+
             db_chunk = RAGChunk(
                 chunk_id=c.chunk_id,
                 project_id=project_id,

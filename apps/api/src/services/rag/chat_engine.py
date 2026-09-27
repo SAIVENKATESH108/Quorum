@@ -16,11 +16,11 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.providers import AIProvider, GeminiProvider, get_default_provider
+from src.agents.providers import AIProvider, GeminiProvider
 from src.services.rag.embeddings import EmbeddingProvider, get_default_embedding_provider
 from src.services.rag.indexer import ReportIndexer
 from src.services.rag.vector_store import (

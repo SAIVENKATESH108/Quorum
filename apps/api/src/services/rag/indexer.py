@@ -23,9 +23,7 @@ from src.agents.research_paper_engine import scrub_text
 from src.db.models import (
     RAGChunk,
     Report,
-    ReportSection,
     ReportSource,
-    Source,
 )
 from src.services.rag.embeddings import EmbeddingProvider, get_default_embedding_provider
 

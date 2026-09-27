@@ -3,8 +3,7 @@ import uuid
 import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security, status
-from fastapi.security import HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,9 +12,7 @@ from sqlalchemy.orm import selectinload
 from src.api.dependencies import get_user_report
 from src.core.security import (
     get_current_user,
-    get_current_user_from_token,
     require_non_guest_write_access,
-    security_bearer,
 )
 from src.db.models import Project, Report, ReportStatus, User, UserRole
 from src.db.session import get_db

@@ -1,16 +1,14 @@
-import os
 import uuid
-import datetime
 from datetime import datetime as dt, timezone, timedelta
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 import jwt
 from src.core.config import settings
 from src.core.redis import close_redis_client
 from src.core.security import cleanup_stale_guest_sessions
-from src.db.models import Project, Report, ReportSection, ReportSource, ReportStatus, Source, User, GuestSession
+from src.db.models import Project, Report, ReportStatus, User, GuestSession
 from src.db.session import async_session_maker
 from src.main import app
 

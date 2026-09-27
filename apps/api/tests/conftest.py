@@ -1,5 +1,4 @@
 import os
-import sys
 from urllib.parse import urlparse, urlunparse
 import pytest
 from sqlalchemy import text

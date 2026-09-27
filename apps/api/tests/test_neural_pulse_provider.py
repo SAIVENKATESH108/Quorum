@@ -1,14 +1,12 @@
 import uuid
 import pytest
 import httpx
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from src.agents.providers import (
-    AIProvider,
     CircuitBreakerState,
     NeuralPulseProvider,
-    NeuralPulseError,
     NeuralPulseAuthError,
     NeuralPulsePromptTooLargeError,
     NeuralPulseQuotaExceeded,
@@ -17,7 +15,6 @@ from src.agents.providers import (
     ProviderFallbackChain,
     get_default_provider,
     record_provider_observation,
-    get_provider_observation,
     reset_provider_observations,
 )
 from src.main import app
