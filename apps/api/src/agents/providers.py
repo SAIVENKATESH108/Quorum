@@ -8,6 +8,9 @@ from collections.abc import Callable
 
 import httpx
 
+from datetime import datetime, timezone
+from typing import Any
+
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -19,6 +22,60 @@ class ProviderError(Exception):
 
 class ProviderUnavailableError(ProviderError):
     """Raised when a provider is unavailable (e.g. circuit breaker is open or retries exhausted)."""
+
+
+class NeuralPulseError(ProviderError):
+    """Base exception for Neural Pulse provider errors."""
+
+
+class NeuralPulseAuthError(NeuralPulseError):
+    """Raised when Neural Pulse authentication fails (HTTP 401)."""
+
+
+class NeuralPulsePromptTooLargeError(NeuralPulseError):
+    """Raised when prompt exceeds Neural Pulse's 2,000 character limit."""
+
+
+class NeuralPulseQuotaExceeded(NeuralPulseError):
+    """Raised when Neural Pulse monthly LLM limit is exceeded (HTTP 429)."""
+
+    def __init__(
+        self,
+        message: str = "Neural Pulse quota is currently exhausted. Select another provider or try again after quota is available.",
+        status_code: int = 429,
+        code: str = "LLM_LIMIT_EXCEEDED",
+        plan: str | None = None,
+        trace_id: str | None = None,
+    ):
+        super().__init__(message)
+        self.provider_name = "NeuralPulse"
+        self.status_code = status_code
+        self.code = code
+        self.plan = plan
+        self.trace_id = trace_id
+
+
+# In-memory record of provider runtime observations:
+# Resets on process restart to empty, meaning configured providers without observations start as "unknown".
+_PROVIDER_OBSERVATIONS: dict[str, dict[str, Any]] = {}
+
+
+def record_provider_observation(provider_name: str, status: str) -> None:
+    """Record a safe observed status ('available', 'quota_exhausted', 'temporarily_unavailable')."""
+    _PROVIDER_OBSERVATIONS[provider_name.lower()] = {
+        "status": status,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def get_provider_observation(provider_name: str) -> dict[str, Any] | None:
+    """Retrieve recorded observation for a provider."""
+    return _PROVIDER_OBSERVATIONS.get(provider_name.lower())
+
+
+def reset_provider_observations() -> None:
+    """Reset observations (useful for testing and process restart simulation)."""
+    _PROVIDER_OBSERVATIONS.clear()
 
 
 class CircuitBreakerOpenError(ProviderUnavailableError):
@@ -142,8 +199,12 @@ class AIProvider(ABC):
                 response = await self._call_api(prompt, system=system)
                 await self.circuit_breaker.record_success(self.name)
                 return response
-            except ProviderUnavailableError:
+            except CircuitBreakerOpenError:
                 # Do not retry on circuit breaker open
+                raise
+            except (NeuralPulseQuotaExceeded, NeuralPulsePromptTooLargeError, NeuralPulseAuthError):
+                # Do not retry quota, prompt-size, or auth errors; record failure and propagate immediately
+                await self.circuit_breaker.record_failure(self.name)
                 raise
             except Exception as exc:  # noqa: BLE001
                 last_exception = exc
@@ -162,16 +223,20 @@ class AIProvider(ABC):
 
         # Record failure in circuit breaker
         await self.circuit_breaker.record_failure(self.name)
+        if isinstance(last_exception, (NeuralPulseQuotaExceeded, NeuralPulsePromptTooLargeError, NeuralPulseAuthError)):
+            raise last_exception
         raise ProviderUnavailableError(
             f"Provider '{self.name}' failed after {self.max_retries} attempts: {last_exception}"
         ) from last_exception
 
     def _is_transient_error(self, exc: Exception) -> bool:
         """Determine whether an error is transient (network timeout, 5xx server error)."""
+        if isinstance(exc, (NeuralPulseQuotaExceeded, NeuralPulsePromptTooLargeError, NeuralPulseAuthError)):
+            return False
         if isinstance(exc, (httpx.TimeoutException, httpx.NetworkError, httpx.ConnectError)):
             return True
         if isinstance(exc, httpx.HTTPStatusError):
-            return exc.response.status_code >= 500 or exc.response.status_code == 429
+            return exc.response.status_code >= 500
         return True
 
 
@@ -319,7 +384,7 @@ class GeminiProvider(AIProvider):
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-3.1-flash-lite",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -376,6 +441,7 @@ class NeuralPulseProvider(AIProvider):
         self,
         api_key: str | None = None,
         base_url: str | None = None,
+        timeout: float | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -388,74 +454,98 @@ class NeuralPulseProvider(AIProvider):
             base_url
             or getattr(settings, "NEURAL_PULSE_BASE_URL", "https://pulse.evorozen.com/api/neural")
         ).rstrip("/")
+        self.timeout = timeout or getattr(settings, "NEURAL_PULSE_TIMEOUT_SECONDS", 30.0)
 
     async def _call_api(self, prompt: str, system: str | None = None) -> str:
-        if not self.api_key or self.api_key.startswith("test_") or self.api_key.startswith("your_"):
-            return (
-                f"[Evorozen Neural Pulse Mock Response]\n"
-                f"### Executive Intelligence Brief\n"
-                f"{prompt[:300]}..."
+        # Construct prompt without unsupported extra fields
+        full_prompt = f"{system}\n\n{prompt}" if system else prompt
+        if not full_prompt or not full_prompt.strip():
+            raise ProviderError("Neural Pulse prompt must be a valid non-empty string.")
+
+        # Documented 2,000-character boundary enforcement before outbound request
+        if len(full_prompt) > 2000:
+            raise NeuralPulsePromptTooLargeError(
+                "The selected content exceeds Neural Pulse's supported prompt size for a single request. "
+                "Use another provider or reduce the request."
             )
 
-        # Evorozen enforces a strict 2000 characters limit on prompts
-        raw_prompt = f"{system}\n\n{prompt}" if system else prompt
-        full_prompt = raw_prompt[:1950]
+        if not self.api_key:
+            record_provider_observation("NeuralPulse", "temporarily_unavailable")
+            raise NeuralPulseAuthError(
+                "Neural Pulse API key is not configured. Please configure NEURAL_PULSE_API_KEY."
+            )
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "action_type": "chat",
-                "prompt": full_prompt,
-            }
-            res = await client.post(self.base_url, headers=headers, json=payload)
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "action_type": "chat",
+            "prompt": full_prompt,
+        }
 
-            if res.status_code == 200:
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                res = await client.post(self.base_url, headers=headers, json=payload)
+        except httpx.TimeoutException as exc:
+            record_provider_observation("NeuralPulse", "temporarily_unavailable")
+            logger.warning("[NeuralPulse] Request timed out.")
+            raise ProviderUnavailableError("Neural Pulse request timed out.") from exc
+        except (httpx.NetworkError, httpx.ConnectError) as exc:
+            record_provider_observation("NeuralPulse", "temporarily_unavailable")
+            logger.warning(f"[NeuralPulse] Network connection failure: {exc.__class__.__name__}")
+            raise ProviderUnavailableError("Neural Pulse network connection failed.") from exc
+        except Exception as exc:
+            record_provider_observation("NeuralPulse", "temporarily_unavailable")
+            logger.warning(f"[NeuralPulse] Unexpected request error: {exc.__class__.__name__}")
+            raise ProviderUnavailableError("Neural Pulse communication error.") from exc
+
+        if res.status_code == 200:
+            try:
                 data = res.json()
-                response_text = data.get("response") or data.get("text")
-                if response_text and "temporarily unavailable" not in response_text:
-                    return response_text
-                trace_id = data.get("traceId") or data.get("trace_id", "unknown")
-                logger.warning(f"[NeuralPulse] Upstream kernel module unavailable (traceId: {trace_id})")
-                return (
-                    f"### Evorozen Neural Pulse Cognitive Synthesis [Kernel Trace: {trace_id}]\n\n"
-                    f"**Agentic Consensus Synthesis:**\n"
-                    f"The Quorum multi-agent pipeline evaluated the hypothesis with Neural Pulse memory state:\n\n"
-                    f"{prompt[:400]}...\n\n"
-                    f"- Verified multi-agent topological convergence across DAG partitions.\n"
-                    f"- Cognitive memory records registered with Evorozen LivingDNA."
-                )
+            except Exception as exc:
+                record_provider_observation("NeuralPulse", "temporarily_unavailable")
+                raise ProviderError("Neural Pulse returned invalid JSON.") from exc
 
-            # Evorozen error handling (extract real traceId and error message)
+            response_text = data.get("response") or data.get("text")
+            if not response_text or not str(response_text).strip():
+                record_provider_observation("NeuralPulse", "temporarily_unavailable")
+                raise ProviderError("Neural Pulse returned empty or invalid response content.")
+
+            record_provider_observation("NeuralPulse", "available")
+            return str(response_text).strip()
+
+        if res.status_code == 401:
+            record_provider_observation("NeuralPulse", "temporarily_unavailable")
+            logger.warning("[NeuralPulse] Authentication failed (401).")
+            raise NeuralPulseAuthError(
+                "Neural Pulse authentication failed. Please verify API key configuration."
+            )
+
+        if res.status_code == 429:
+            record_provider_observation("NeuralPulse", "quota_exhausted")
+            err_code = "LLM_LIMIT_EXCEEDED"
+            err_plan = None
+            trace_id = None
             try:
                 err_data = res.json()
-                err_msg = err_data.get("error", "")
-                trace_id = err_data.get("traceId") or err_data.get("trace_id", "unknown")
+                err_code = err_data.get("code", err_code)
+                err_plan = err_data.get("plan")
+                trace_id = err_data.get("traceId") or err_data.get("trace_id")
             except Exception:
-                err_msg = res.text
-                trace_id = "unknown"
-
-            # If Evorozen downstream LLM provider has an internal outage on their infrastructure:
-            if "All LLM providers failed" in err_msg or "huggingface" in err_msg or "Payload Too Large" in err_msg:
-                logger.warning(
-                    f"[NeuralPulse] Evorozen downstream LLM provider outage (traceId: {trace_id}): {err_msg}. "
-                    f"Generating cognitive memory synthesis with verified trace."
-                )
-                return (
-                    f"### Evorozen Neural Pulse Research Synthesis [Kernel Trace: {trace_id}]\n\n"
-                    f"**Cognitive State Synthesis:**\n"
-                    f"{prompt[:500]}...\n\n"
-                    f"- Multi-agent coordination converged on verified state under intent-based security.\n"
-                    f"- Evorozen Micro-Kernel Trace: `{trace_id}`\n"
-                    f"- LivingDNA Status: Active policies enforced."
-                )
-
-            logger.warning(f"[NeuralPulse] API error ({res.status_code}) traceId={trace_id}: {err_msg}")
-            raise ProviderUnavailableError(
-                f"Evorozen Neural Pulse error ({res.status_code}) [traceId: {trace_id}]: {err_msg}"
+                pass
+            logger.warning(f"[NeuralPulse] Quota exhausted (429, code={err_code}).")
+            raise NeuralPulseQuotaExceeded(
+                message="Neural Pulse quota is currently exhausted. Select another provider or try again after quota is available.",
+                status_code=429,
+                code=err_code,
+                plan=err_plan,
+                trace_id=trace_id,
             )
+
+        record_provider_observation("NeuralPulse", "temporarily_unavailable")
+        logger.warning(f"[NeuralPulse] Upstream provider error (status {res.status_code}).")
+        raise ProviderUnavailableError(f"Neural Pulse provider error (status {res.status_code}).")
 
 
 class OllamaProvider(AIProvider):
@@ -557,27 +647,23 @@ class ProviderFallbackChain(AIProvider):
 
 def get_default_provider(mode: str = "cloud") -> AIProvider:
     """
-    Instantiate provider fallback chain.
-    If mode is 'local' or 'offline', pins strictly to OllamaProvider (zero cloud calls).
-    If mode is 'neural_pulse', prioritizes Evorozen's Neural Pulse provider with resilient cloud fallback.
-    Otherwise Priority: OpenRouter → Gemini → OpenAI → NeuralPulse → Ollama.
+    Instantiate provider according to explicit user selection:
+    - If mode is 'local' or 'offline', pins strictly to OllamaProvider (zero cloud calls).
+    - If mode is 'neural_pulse', pins strictly to NeuralPulseProvider (never silently falls back).
+    - If mode is 'cloud', uses OpenRouter -> Gemini -> OpenAI fallback chain.
+      Neural Pulse is NEVER invoked by the cloud fallback chain unless explicitly configured.
     """
     if mode in ("local", "offline"):
         return OllamaProvider()
     if mode in ("neural_pulse", "neural-pulse", "evorozen"):
-        return ProviderFallbackChain([
-            NeuralPulseProvider(),
-            OpenRouterProvider(),
-            GeminiProvider(),
-            OpenAIProvider(),
-        ])
+        return NeuralPulseProvider()
 
+    # Cloud fallback chain: OpenRouter -> Gemini -> OpenAI
+    # Neural Pulse is strictly excluded from default cloud fallback
     providers: list[AIProvider] = [
-        NeuralPulseProvider(),
         OpenRouterProvider(),
         GeminiProvider(),
         OpenAIProvider(),
-        OllamaProvider(),
     ]
     return ProviderFallbackChain(providers)
 

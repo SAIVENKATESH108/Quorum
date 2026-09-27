@@ -9,17 +9,22 @@ from src.db.models import (
     AgentTaskStatus,
     Project,
     Report,
+    RAGChunk,
     ReportSection,
     ReportSource,
     ReportStatus,
     Source,
     User,
+    UserRole,
+    GuestSession,
 )
 from src.db.session import async_session_maker, engine, get_db
 
 __all__ = [
     "Base",
     "User",
+    "UserRole",
+    "GuestSession",
     "Project",
     "Report",
     "ReportStatus",
@@ -31,6 +36,7 @@ __all__ = [
     "ReportSection",
     "Source",
     "ReportSource",
+    "RAGChunk",
     "engine",
     "async_session_maker",
     "get_db",

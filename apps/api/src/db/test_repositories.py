@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+import pytest
 from src.db.session import async_session_maker
 from src.db.models import (
     ReportSection,
@@ -12,7 +13,9 @@ from src.db.models import (
 from src.db.repository import ReportRepository, SourceRepository, AgentRunRepository
 
 
+@pytest.mark.asyncio
 async def test_repos() -> None:
+
     print("\n--- Testing Repositories ---")
     async with async_session_maker() as session:
         report_repo = ReportRepository(session)

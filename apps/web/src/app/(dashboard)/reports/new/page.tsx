@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useProjects } from "@/hooks/useProjects";
-import { useCreateReport } from "@/hooks/useReports";
+import { useCreateReport, useProvidersStatus } from "@/hooks/useReports";
 import { useUiStore } from "@/stores/uiStore";
 
 type InputSourceType = "query" | "github_repo" | "local_folder";
@@ -60,6 +60,11 @@ export default function NewReportPage() {
     selectedProjectId || (projects.length > 0 ? projects[0].id : "");
 
   const createReport = useCreateReport(effectiveProjectId);
+  const { data: providersStatus } = useProvidersStatus();
+  const npStatus = providersStatus?.neural_pulse?.status ?? "unknown";
+  const isPromptTooLong = providerMode === "neural_pulse" && query.trim().length > 2000;
+  const isQuotaExhausted = providerMode === "neural_pulse" && npStatus === "quota_exhausted";
+  const isNotConfigured = providerMode === "neural_pulse" && npStatus === "not_configured";
 
   // Chromium File System Access API handler
   const handleSelectLocalFolder = async () => {
@@ -486,9 +491,34 @@ export default function NewReportPage() {
                       : "border-border bg-surface text-text-secondary hover:border-accent/40"
                   }`}
                 >
-                  <div className="text-text-primary font-medium">Evorozen Neural Pulse</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-text-primary font-medium">Evorozen Neural Pulse</div>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                        npStatus === "available"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : npStatus === "quota_exhausted"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                          : npStatus === "temporarily_unavailable"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          : npStatus === "not_configured"
+                          ? "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                          : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20"
+                      }`}
+                    >
+                      {npStatus === "available"
+                        ? "Available"
+                        : npStatus === "quota_exhausted"
+                        ? "Quota exhausted"
+                        : npStatus === "temporarily_unavailable"
+                        ? "Temporarily unavailable"
+                        : npStatus === "not_configured"
+                        ? "Not configured"
+                        : "Status unknown"}
+                    </span>
+                  </div>
                   <div className="text-[10px] text-text-secondary mt-0.5">
-                    Cognitive memory provider for focused research synthesis.
+                    Edge-native AI inference through Evorozen Neural Pulse.
                   </div>
                 </button>
 
@@ -507,6 +537,41 @@ export default function NewReportPage() {
                   </div>
                 </button>
               </div>
+
+              {/* Neural Pulse Warnings & Explanations */}
+              {providerMode === "neural_pulse" && (
+                <div className="mt-3 space-y-2">
+                  {npStatus === "unknown" && (
+                    <div className="p-2.5 rounded-md border border-sky-500/30 bg-sky-500/5 text-xs text-sky-700 dark:text-sky-300">
+                      Provider availability will be confirmed when generation starts.
+                    </div>
+                  )}
+                  {npStatus === "quota_exhausted" && (
+                    <div className="p-2.5 rounded-md border border-rose-500/30 bg-rose-500/5 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        Neural Pulse quota is currently exhausted. Select another provider or try again after quota is available.
+                      </span>
+                    </div>
+                  )}
+                  {npStatus === "not_configured" && (
+                    <div className="p-2.5 rounded-md border border-slate-500/30 bg-slate-500/5 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        Neural Pulse API key is not configured. Please configure an API key or select another provider.
+                      </span>
+                    </div>
+                  )}
+                  {isPromptTooLong && (
+                    <div className="p-2.5 rounded-md border border-amber-500/30 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        The selected content exceeds Neural Pulse&apos;s supported prompt size for a single request (2,000 characters). Use another provider or reduce the request.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Submit Bar */}
@@ -530,7 +595,10 @@ export default function NewReportPage() {
                   createReport.isPending ||
                   (sourceType === "query" && !query.trim()) ||
                   (sourceType === "github_repo" && !githubUrl.trim()) ||
-                  (sourceType === "local_folder" && !selectedFolderName)
+                  (sourceType === "local_folder" && !selectedFolderName) ||
+                  isPromptTooLong ||
+                  isQuotaExhausted ||
+                  isNotConfigured
                 }
                 className="gap-1.5 px-5 shadow-xs"
               >

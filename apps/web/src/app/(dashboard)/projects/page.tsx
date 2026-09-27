@@ -10,23 +10,22 @@ import {
   FileText,
   FolderPlus,
   Trash2,
+  Shield,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useProjects } from "@/hooks/useProjects";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuth } from "@/components/auth-provider";
 
 export default function ProjectsListPage() {
   const { data: projects = [], isLoading } = useProjects();
+  const { user } = useAuth();
+  const isGuest = user?.role === "guest";
   const setActiveModal = useUiStore((state) => state.setActiveModal);
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -61,14 +60,34 @@ export default function ProjectsListPage() {
         <div className="flex items-center gap-3">
           <Button
             size="sm"
-            onClick={() => setActiveModal("create_project")}
-            className="flex items-center gap-2 bg-accent text-accent-foreground"
+            disabled={isGuest}
+            onClick={() => {
+              if (isGuest) return;
+              setActiveModal("create_project");
+            }}
+            title={isGuest ? "Guest Judge: Read-only evaluation mode" : "Create a new project"}
+            className={cn(
+              "flex items-center gap-2 bg-accent text-accent-foreground",
+              isGuest && "opacity-50 cursor-not-allowed"
+            )}
           >
             <Plus className="h-4 w-4" />
-            <span>New Project</span>
+            <span>{isGuest ? "Read-Only Mode" : "New Project"}</span>
           </Button>
         </div>
       </div>
+
+      {isGuest && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-500">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 shrink-0" />
+            <span className="font-semibold">Guest Judge — Read-only</span>
+            <span className="text-xs text-text-secondary hidden sm:inline">
+              — You are viewing curated demo research projects and reports. Creating, editing, or deleting resources is disabled.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Projects Grid */}
       {isLoading ? (
@@ -138,25 +157,27 @@ export default function ProjectsListPage() {
                     <span>Workspace Hub</span>
                   </Link>
 
-                  <div className="flex items-center gap-1">
-                    <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                      <Link href={`/reports/new?projectId=${project.id}`}>
-                        <span>Launch Swarm</span>
-                        <ArrowUpRight className="h-3 w-3 ml-1" />
-                      </Link>
-                    </Button>
+                  {!isGuest && (
+                    <div className="flex items-center gap-1">
+                      <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                        <Link href={`/reports/new?projectId=${project.id}`}>
+                          <span>Launch Swarm</span>
+                          <ArrowUpRight className="h-3 w-3 ml-1" />
+                        </Link>
+                      </Button>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDelete(e, project.id)}
-                      disabled={deletingId === project.id}
-                      className="h-7 w-7 p-0 text-text-secondary hover:text-danger hover:bg-danger/10"
-                      title="Delete project"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleDelete(e, project.id)}
+                        disabled={deletingId === project.id}
+                        className="h-7 w-7 p-0 text-text-secondary hover:text-danger hover:bg-danger/10"
+                        title="Delete project"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -1,30 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
-import { serverStore } from "@/lib/server-store";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
 /**
- * Evidence library proxy. Sources are retrieved from the backend (which aggregates
- * verified citations from report sources and agent findings) with fallback to
- * serverStore.
+ * Evidence library proxy. Sources are retrieved directly from the FastAPI backend
+ * which aggregates verified citations from report sources and agent findings.
+ * Fails closed without unscoped fallback.
  */
 export async function GET(request: NextRequest) {
-  const category = request.nextUrl.searchParams.get("category") || undefined;
-  const apiUrl = backendApiUrl();
-
-  if (apiUrl) {
-    try {
-      const query = request.nextUrl.searchParams.toString();
-      const res = await fetch(`${apiUrl}/api/sources${query ? `?${query}` : ""}`, {
-        headers: backendHeaders(request),
-        cache: "no-store",
-      });
-      if (res.ok) {
-        return NextResponse.json(await res.json());
-      }
-    } catch {
-      // Fall through to server store fallback
-    }
-  }
-
-  return NextResponse.json(await serverStore.getSources(category));
+  const query = request.nextUrl.searchParams.toString();
+  const endpoint = `/api/sources${query ? `?${query}` : ""}`;
+  return proxyToBackend(request, endpoint);
 }

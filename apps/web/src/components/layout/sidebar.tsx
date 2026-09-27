@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/useProjects";
 import { useReports } from "@/hooks/useReports";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuth } from "@/components/auth-provider";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -37,10 +38,14 @@ function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "r
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const setActiveModal = useUiStore((state) => state.setActiveModal);
   const { data: projects = [], isLoading, isError, refetch } = useProjects();
-  const { data: liveReports = [] } = useReports();
+  const { data: liveReportData } = useReports();
+  const liveReports = liveReportData?.items ?? [];
   const recentReports = liveReports.slice(0, 8);
+
+  const isGuest = user?.role === "guest";
 
   const sidebarContent = (
     <div className="flex h-full flex-col justify-between p-4">
@@ -49,16 +54,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Action Button: Create New Project */}
         <div>
           <Button
+            disabled={isGuest}
             onClick={() => {
+              if (isGuest) return;
               setActiveModal("create_project");
               onClose();
             }}
-            className="w-full justify-start gap-2 shadow-sm font-semibold cursor-pointer"
+            className={cn(
+              "w-full justify-start gap-2 shadow-sm font-semibold",
+              isGuest ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+            )}
             size="sm"
+            title={isGuest ? "Guest Judge: Read-only evaluation mode" : "Create a new research project"}
             aria-label="Create a new research project"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>New Research Project</span>
+            <span>{isGuest ? "Read-Only Evaluation" : "New Research Project"}</span>
           </Button>
         </div>
 
@@ -122,10 +133,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Recent Reports Section */}
         <div className="space-y-1.5">
           <div className="px-2 text-xs font-semibold tracking-wider text-text-secondary uppercase">
-            <span>Live Reports</span>
+            <span>Recent Reports (last 8)</span>
           </div>
 
-          <nav aria-label="Live reports list" className="space-y-1">
+          <nav aria-label="Recent reports list" className="space-y-1">
             {recentReports.length === 0 ? (
               <div className="px-2 py-2 text-xs text-text-secondary">
                 No reports generated yet.

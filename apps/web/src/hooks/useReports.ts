@@ -3,30 +3,75 @@ import { useAuth } from "@/components/auth-provider";
 import {
   apiClient,
   ApiError,
+  ReportCountsResponse,
   ReportCreate,
   ReportCreateResponse,
   ReportDetailResponse,
+  ReportListResponse,
   ReportSummaryResponse,
+  ProvidersStatusResponse,
 } from "@/lib/api-client";
 import { useToast } from "@/components/ui/toast";
 
 export const reportKeys = {
   all: ["reports"] as const,
   lists: () => ["reports", "list"] as const,
-  list: (projectId?: string) => ["reports", "list", projectId ?? "all"] as const,
+  /** Key for workspace-wide paginated list with optional status + pagination params. */
+  list: (projectId?: string, params?: { status?: string; limit?: number; offset?: number }) =>
+    ["reports", "list", projectId ?? "all", params ?? {}] as const,
   details: () => ["reports", "detail"] as const,
   detail: (reportId: string) => ["reports", "detail", reportId] as const,
+  counts: () => ["reports", "counts"] as const,
 };
 
-export function useReports(projectId?: string) {
+export interface UseReportsParams {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Fetch reports for a specific project (unbounded plain array, project-scoped).
+ */
+export function useProjectReports(projectId: string) {
   return useQuery<ReportSummaryResponse[], ApiError>({
     queryKey: reportKeys.list(projectId),
-    // Reports are always API-backed: an empty workspace renders the empty state
-    // rather than being backfilled with demo/seed entries.
-    queryFn: async () =>
-      projectId
-        ? apiClient.getProjectReports(projectId)
-        : apiClient.getAllReports(),
+    queryFn: () => apiClient.getProjectReports(projectId),
+  });
+}
+
+/**
+ * Fetch workspace-wide paginated report list.
+ * Status filter and pagination are server-side.
+ */
+export function useReports(params?: UseReportsParams) {
+  return useQuery<ReportListResponse, ApiError>({
+    queryKey: reportKeys.list(undefined, params),
+    queryFn: () =>
+      apiClient.getAllReports(params),
+  });
+}
+
+/**
+ * Per-status-group report counts scoped to the caller's visible reports.
+ * Uses the same visibility rules as the report list.
+ */
+export function useReportCounts() {
+  return useQuery<ReportCountsResponse, ApiError>({
+    queryKey: reportKeys.counts(),
+    queryFn: () => apiClient.getReportCounts(),
+  });
+}
+
+/**
+ * Fetch provider availability statuses without external probing.
+ */
+export function useProvidersStatus() {
+  return useQuery<ProvidersStatusResponse, ApiError>({
+    queryKey: ["providers", "status"],
+    queryFn: () => apiClient.getProvidersStatus(),
+    staleTime: 60_000,
+    retry: false,
   });
 }
 
@@ -66,10 +111,8 @@ export function useCreateReport(defaultProjectId?: string) {
   >({
     mutationFn: ({ projectId: pid, data }) => apiClient.createReport(pid, data),
     onSuccess: (newReport, variables) => {
-      // Invalidate all report lists and caches (sidebar and list page)
-      queryClient.invalidateQueries({
-        queryKey: reportKeys.all,
-      });
+      // Invalidate all report lists, sidebar, and counts
+      queryClient.invalidateQueries({ queryKey: reportKeys.all });
       toast({
         title: "Report Pipeline Initiated",
         description: `Autonomous agent swarm scheduled for "${newReport.query}". Real-time updates live on WebSocket.`,
@@ -93,9 +136,7 @@ export function useDeleteReport() {
   return useMutation<void, ApiError, { reportId: string; projectId?: string }>({
     mutationFn: ({ reportId }) => apiClient.deleteReport(reportId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: reportKeys.all,
-      });
+      queryClient.invalidateQueries({ queryKey: reportKeys.all });
       toast({
         title: "Report Deleted",
         description: "Report and associated agent runs have been removed.",

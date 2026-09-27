@@ -32,6 +32,7 @@ from src.agents.research_paper_engine import (
 )
 from src.agents.research_providers import check_all_providers
 from src.api.dependencies import get_user_report
+from src.core.security import require_non_guest_write_access
 from src.db.models import (
     Report,
     ResearchJobStatus,
@@ -92,7 +93,7 @@ async def get_provider_health() -> ProviderHealthResponse:
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=ResearchJobDetail)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ResearchJobDetail, dependencies=[Depends(require_non_guest_write_access)])
 async def create_research_job(
     body: ResearchJobCreateRequest,
     report: Report = Depends(get_user_report),
@@ -154,7 +155,7 @@ async def get_research_job(
     return _job_to_detail(job)
 
 
-@router.post("/{job_id}/confirm-consent", response_model=ResearchJobDetail)
+@router.post("/{job_id}/confirm-consent", response_model=ResearchJobDetail, dependencies=[Depends(require_non_guest_write_access)])
 async def confirm_consent(
     job_id: uuid.UUID,
     body: ConsentConfirmRequest,
@@ -190,7 +191,7 @@ async def confirm_consent(
     return _job_to_detail(job)
 
 
-@router.put("/{job_id}/plan", response_model=ResearchJobDetail)
+@router.put("/{job_id}/plan", response_model=ResearchJobDetail, dependencies=[Depends(require_non_guest_write_access)])
 async def update_research_plan(
     job_id: uuid.UUID,
     body: PlanEditRequest,
@@ -222,7 +223,7 @@ async def update_research_plan(
     return _job_to_detail(job)
 
 
-@router.post("/{job_id}/run", status_code=status.HTTP_202_ACCEPTED, response_model=ResearchJobDetail)
+@router.post("/{job_id}/run", status_code=status.HTTP_202_ACCEPTED, response_model=ResearchJobDetail, dependencies=[Depends(require_non_guest_write_access)])
 async def run_research_job(
     job_id: uuid.UUID,
     background_tasks: BackgroundTasks,
@@ -291,7 +292,7 @@ async def _run_pipeline_background(job_id: uuid.UUID) -> None:
             logger.error(f"[ResearchBG] Unhandled error for job {job_id}: {exc}", exc_info=True)
 
 
-@router.post("/{job_id}/approve-or-reject", response_model=ResearchJobDetail)
+@router.post("/{job_id}/approve-or-reject", response_model=ResearchJobDetail, dependencies=[Depends(require_non_guest_write_access)])
 async def approve_or_reject_job(
     job_id: uuid.UUID,
     body: ApprovalRequest,

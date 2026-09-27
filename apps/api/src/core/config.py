@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -6,9 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Quorum API"
     VERSION: str = "0.1.0"
+    ENVIRONMENT: str = "production"
     API_V1_STR: str = "/api"
 
+
     DATABASE_URL: Optional[str] = None
+    TEST_DATABASE_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
     AUTH_SECRET_KEY: Optional[str] = None
     AUTH_SESSION_HOURS: int = 24
@@ -20,6 +24,7 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     NEURAL_PULSE_API_KEY: Optional[str] = None
     NEURAL_PULSE_BASE_URL: str = "https://pulse.evorozen.com/api/neural"
+    NEURAL_PULSE_TIMEOUT_SECONDS: float = 30.0
     CLERK_SECRET_KEY: Optional[str] = None
     CLERK_JWKS_URL: Optional[str] = None
     CLERK_ISSUER: Optional[str] = None
@@ -60,11 +65,15 @@ class Settings(BaseSettings):
         return [item.lower() for item in v]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")),
+            ".env",
+        ),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
     )
+
 
 
 settings = Settings()

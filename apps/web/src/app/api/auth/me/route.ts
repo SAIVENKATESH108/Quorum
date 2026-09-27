@@ -9,18 +9,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(null);
   }
 
-  // If session cookie is a valid base64-encoded user object (e.g. guest judge session)
-  if (sessionCookie) {
-    try {
-      const decoded = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
-      if (decoded && decoded.email) {
-        return NextResponse.json(decoded);
-      }
-    } catch {
-      // not base64 json, proceed to backend API
-    }
-  }
-
   const headers = backendHeaders(request);
   const apiUrl = backendApiUrl();
   if (!apiUrl) {
@@ -37,7 +25,12 @@ export async function GET(request: NextRequest) {
     }
     const text = await response.text();
     try {
-      return NextResponse.json(JSON.parse(text));
+      const data = JSON.parse(text);
+      if (data && data.role === "guest") {
+        data.email = "";
+        data.name = "Guest Judge";
+      }
+      return NextResponse.json(data);
     } catch {
       return NextResponse.json(null);
     }

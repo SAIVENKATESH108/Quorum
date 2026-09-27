@@ -5,19 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
-  User,
-  Shield,
   Sparkles,
   Search,
   Layers,
-  Database,
   Settings,
   LogOut,
   Check,
   Cpu,
   Radio,
-  ExternalLink,
-  Users,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -114,23 +109,25 @@ export function UserAvatarDropdown() {
   }
 
   // Determine user initials and role label
-  const displayName = user.name || user.email.split("@")[0] || "User";
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const isGuest = user.role === "guest";
+  const displayName = isGuest ? "Guest Judge" : (user.name || user.email.split("@")[0] || "User");
+  const initials = isGuest
+    ? "GJ"
+    : displayName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
 
-  const isGuest = user.id.includes("guest") || user.email.includes("guest");
   const roleDisplay = isGuest
-    ? "Guest Judge"
+    ? "Guest Judge — Read-only"
     : user.role === "admin"
     ? "Admin"
     : "Researcher";
 
   const handleQuickSwitch = async (acc: (typeof PRESET_ACCOUNTS)[0]) => {
-    if (user.email === acc.email) return;
+    if (isGuest || user.email === acc.email) return;
     setSwitching(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -206,9 +203,15 @@ export function UserAvatarDropdown() {
                     {roleDisplay}
                   </Badge>
                 </div>
-                <p className="text-[11px] text-text-secondary font-mono truncate">
-                  {user.email}
-                </p>
+                {isGuest ? (
+                  <p className="text-[11px] text-text-secondary truncate">
+                    Read-only evaluation workspace
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-text-secondary font-mono truncate">
+                    {user.email}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -321,7 +324,7 @@ export function UserAvatarDropdown() {
             </span>
             <div className="mt-1 space-y-1">
               {PRESET_ACCOUNTS.map((acc) => {
-                const isCurrent = user.email === acc.email;
+                const isCurrent = !isGuest && user.email === acc.email;
                 return (
                   <button
                     key={acc.email}

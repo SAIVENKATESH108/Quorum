@@ -79,12 +79,14 @@ async def create_persisted_report(
             id=uuid.uuid4(),
             user_id=user.id,
             title=f"PDF Fixture Project {uuid.uuid4().hex[:6]}",
+            is_guest_demo=True,
         )
         report = Report(
             id=uuid.uuid4(),
             project_id=project.id,
             query=query,
             status=ReportStatus.COMPLETE,
+            is_guest_demo=True,
         )
         source = Source(id=uuid.uuid4(), url=source_url, title=source_title)
         section = ReportSection(

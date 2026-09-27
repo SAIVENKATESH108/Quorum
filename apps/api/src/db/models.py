@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
     DateTime,
     Enum as SQLEnum,
     ForeignKey,
@@ -12,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -55,6 +58,7 @@ class AgentTaskStatus(str, enum.Enum):
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     MEMBER = "member"
+    GUEST = "guest"
 
 
 class User(Base):
@@ -86,6 +90,11 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    guest_sessions: Mapped[List["GuestSession"]] = relationship(
+        "GuestSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Project(Base):
@@ -103,6 +112,13 @@ class Project(Base):
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_guest_demo: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -148,6 +164,13 @@ class Report(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source_type: Mapped[str] = mapped_column(String(50), default="query", nullable=True)
     source_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_guest_demo: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -575,4 +598,127 @@ class ClaimEvidenceMapping(Base):
     evidence: Mapped[Optional["ResearchEvidence"]] = relationship(
         "ResearchEvidence", back_populates="claim_mappings"
     )
+
+
+class RAGChunk(Base):
+    """
+    RAG Chunk storage for grounded retrieval across reports, sources, and documentation.
+    Guarantees strict provenance, deterministic chunk IDs, and exact 1536-dim vector embeddings.
+    """
+    __tablename__ = "rag_chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    chunk_id: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    report_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    report_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("report_sections.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    source_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    document_type: Mapped[str] = mapped_column(String(64), default="report_section", nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), default="report", nullable=False)
+    access_level: Mapped[str] = mapped_column(String(32), default="full_text", nullable=False)
+    source_title: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    heading_hierarchy: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    page_or_line_range: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    redaction_applied: Mapped[bool] = mapped_column(default=False, nullable=False)
+    redaction_categories: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
+
+    # Code provenance & repository boundaries
+    repo_identifier: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, index=True)
+    commit_sha: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    relative_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    symbol_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    symbol_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    start_line: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    end_line: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_ast: Mapped[bool] = mapped_column(default=False, nullable=False)
+    chunk_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+
+    embedding: Mapped[List[float]] = mapped_column(Vector(1536), nullable=False)
+    embedding_provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(128), nullable=False)
+    embedding_dimension: Mapped[int] = mapped_column(Integer, default=1536, nullable=False)
+    chunking_strategy: Mapped[str] = mapped_column(String(64), default="heading_aware", nullable=False)
+    chunking_version: Mapped[str] = mapped_column(String(32), default="v1", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project")
+    report: Mapped[Optional["Report"]] = relationship("Report")
+    report_section: Mapped[Optional["ReportSection"]] = relationship("ReportSection")
+    source: Mapped[Optional["Source"]] = relationship("Source")
+
+
+class GuestSession(Base):
+    """
+    Server-side guest session registry for per-session revocation.
+    Guarantees isolated evaluator logout without invalidating other concurrent guest sessions.
+    """
+    __tablename__ = "guest_sessions"
+    __table_args__ = (
+        CheckConstraint("session_type = 'guest'", name="chk_guest_session_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_type: Mapped[str] = mapped_column(
+        String(20), default="guest", server_default="guest", nullable=False
+    )
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    user_agent: Mapped[Optional[str]] = mapped_column(
+        String(256), nullable=True
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="guest_sessions")
+
 

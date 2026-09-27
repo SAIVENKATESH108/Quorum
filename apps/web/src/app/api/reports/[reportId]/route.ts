@@ -1,91 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import { serverStore } from "@/lib/server-store";
-import { backendApiUrl, backendHeaders } from "@/lib/backend-proxy";
+import { NextRequest } from "next/server";
+import { proxyToBackend } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { reportId: string } }
 ) {
-  const { reportId } = params;
-  const apiUrl = backendApiUrl();
-
-  // 1. If backend API is configured and reachable, attempt proxying
-  if (apiUrl) {
-    try {
-      const backendRes = await fetch(`${apiUrl}/api/reports/${reportId}`, {
-        headers: backendHeaders(request),
-      });
-      if (backendRes.ok) {
-        const data = await backendRes.json();
-        return NextResponse.json(data);
-      }
-    } catch {
-      // Backend not reached, fall through to serverStore
-    }
-  }
-
-  // 2. Check serverStore for dynamically created reports
-  const stored = await serverStore.getReport(reportId);
-  if (stored) {
-    return NextResponse.json(stored);
-  }
-
-  // 3. A missing report is reported honestly. Synthesized placeholder content is
-  //    never generated on behalf of a report the pipeline has not produced.
-  return NextResponse.json(
-    {
-      error: "Report not found",
-      detail: `No research report exists for id ${reportId}.`,
-    },
-    { status: 404 }
-  );
+  return proxyToBackend(request, `/api/reports/${params.reportId}`);
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { reportId: string } }
 ) {
-  const { reportId } = params;
-  try {
-    const body = await request.json();
-    const updated = await serverStore.updateReportStatus(
-      reportId,
-      body.status || "complete"
-    );
-    if (!updated) {
-      return NextResponse.json({ error: "Report not found" }, { status: 404 });
-    }
-    return NextResponse.json(updated);
-  } catch (err: unknown) {
-    return NextResponse.json(
-      { error: "Failed to update report", detail: (err as Error).message },
-      { status: 400 }
-    );
-  }
+  const body = await request.text();
+  return proxyToBackend(request, `/api/reports/${params.reportId}`, {
+    method: "PATCH",
+    body,
+  });
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { reportId: string } }
 ) {
-  const { reportId } = params;
-  const apiUrl = backendApiUrl();
-
-  if (apiUrl) {
-    try {
-      await fetch(`${apiUrl}/api/reports/${reportId}`, {
-        method: "DELETE",
-        headers: backendHeaders(request),
-      });
-    } catch {
-      // Fall through
-    }
-  }
-
-  const deleted = await serverStore.deleteReport(reportId);
-  if (!deleted) {
-    return NextResponse.json({ error: "Report not found" }, { status: 404 });
-  }
-
-  return new NextResponse(null, { status: 204 });
+  return proxyToBackend(request, `/api/reports/${params.reportId}`, {
+    method: "DELETE",
+  });
 }

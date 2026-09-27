@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/useProjects";
-import { useReports } from "@/hooks/useReports";
+import { useProjectReports } from "@/hooks/useReports";
 
 function getBadgeVariant(status: string): "complete" | "failed" | "pending" | "running" {
   if (status === "complete") return "complete";
@@ -59,7 +59,7 @@ export default function ProjectDetailPage() {
   };
 
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
-  const { data: reports = [], isLoading: reportsLoading } = useReports(projectId);
+  const { data: reports = [], isLoading: reportsLoading } = useProjectReports(projectId);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");

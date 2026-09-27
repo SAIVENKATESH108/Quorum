@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.api.admin import router as admin_router
 from src.api.chat import router as chat_router
 from src.api.auth import router as auth_router
 from src.api.projects import router as projects_router
@@ -13,6 +14,7 @@ from src.api.websocket import router as websocket_router
 from src.core.config import settings
 from src.core.logging import RequestIDMiddleware, setup_logging
 from src.schemas.health import HealthResponse
+
 
 # Initialize structured JSON logging
 setup_logging()
@@ -75,6 +77,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Data Source Attribution Middleware
+@app.middleware("http")
+async def add_data_source_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Quorum-Data-Source"] = "fastapi_backend"
+    return response
+
 # Mount API Routers
 app.include_router(projects_router)
 app.include_router(auth_router)
@@ -83,12 +92,14 @@ app.include_router(sources_router)
 app.include_router(chat_router)
 app.include_router(websocket_router)
 app.include_router(research_jobs_router)
+app.include_router(admin_router)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check() -> HealthResponse:
     """Health check endpoint responding 200 OK."""
     return HealthResponse(status="ok")
+
 
 
 if __name__ == "__main__":

@@ -1,78 +1,64 @@
 # Quorum
 
-> **Multi-agent AI research and report-generation platform.**  
-> Transform complex research queries into rigorously cited, fact-checked intelligence reports in minutes using parallel agent swarms.
+> **Autonomous multi-agent research and intelligence synthesis platform.**  
+> Transforms research inquiries, GitHub repositories, and local codebases into structured, verifiable intelligence reports using parallel agent swarms.
 
-[![Live Web App](https://img.shields.io/badge/Live%20App-Vercel-black?logo=vercel)](https://quorum-research.vercel.app)
-[![API Status](https://img.shields.io/badge/API-Live%20(200%20OK)-success?logo=fastapi)](https://api.quorum-research.up.railway.app/health)
-[![Interactive Docs](https://img.shields.io/badge/Swagger-OpenAPI-brightgreen?logo=swagger)](https://api.quorum-research.up.railway.app/docs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 🌐 Live Production Deployments
+## 🌐 Production Deployment Status
 
-| Component | Provider | Live URL / Endpoint |
-|---|---|---|
-| **Web Dashboard** | **Vercel** | [https://quorum-research.vercel.app](https://quorum-research.vercel.app) |
-| **Backend REST API** | **Railway / Fly.io** | [https://api.quorum-research.up.railway.app](https://api.quorum-research.up.railway.app) |
-| **Health Probe** | **Railway / Fly.io** | [https://api.quorum-research.up.railway.app/health](https://api.quorum-research.up.railway.app/health) |
-| **API Documentation** | **FastAPI Swagger** | [https://api.quorum-research.up.railway.app/docs](https://api.quorum-research.up.railway.app/docs) |
-| **Real-Time WebSocket** | **WSS Endpoint** | `wss://api.quorum-research.up.railway.app/ws/reports/{report_id}` |
+> **Notice**: Security and deployment verification is in progress following production deployment configuration correction.
 
 ---
 
 ## 🎯 The Problem It Solves
 
-Modern foundation models fail at rigorous, long-form research:
-1. **Single-Turn Blindness**: Monolithic LLM prompts lack the context window and architectural structure to independently explore orthogonal sub-problems in parallel.
-2. **Unchecked Hallucinations**: Standard AI assistants generate authoritative-sounding claims accompanied by fabricated DOIs, broken URLs, and invalid academic citations.
-3. **Opaque Synthesis**: Users have no visibility into how conclusions were derived, which claims were verified, or where conflicting evidence was reconciled.
-4. **Analyst Burnout**: Investment analysts, strategy consultants, and technical researchers spend 15–20 hours per topic manually searching databases, aggregating literature, validating sources, and drafting structured documents.
+Standard foundation model interfaces struggle with structured, long-form technical research:
+1. **Single-Turn Blindness**: Monolithic prompt-completion paradigms lack the architectural structure to investigate orthogonal sub-problems in parallel.
+2. **Unchecked Citations**: Generative models frequently invent non-existent DOIs, broken URLs, and hallucinated academic references.
+3. **Opaque Synthesis**: Analysts have limited visibility into how conclusions were formed, which evidence was verified, and where contradictions were resolved.
+4. **Analyst Bottleneck**: Knowledge workers spend tens of hours searching literature, aggregating disparate sources, and drafting structured documents.
 
-**Quorum** eliminates this bottleneck. By treating comprehensive research not as a chat completion, but as an **asynchronous distributed multi-agent DAG (Directed Acyclic Graph)**, Quorum orchestrates parallel researchers, adversarial fact-checkers, and synthesis writers to produce institutional-grade intelligence reports backed by verifiable citations.
+**Quorum** addresses this by modeling research as an **asynchronous distributed multi-agent Directed Acyclic Graph (DAG)**. Parallel researcher workers, adversarial fact-checkers, and synthesis writers collaborate to produce structured reports backed by verifiable citations and exported publication-grade PDFs.
 
 ---
 
-## 🏛️ Architecture & System Topology
+## 🏛️ System Architecture
 
 ```mermaid
 flowchart TD
     subgraph Client Layer ["Client Layer (Edge & Browser)"]
-        Browser["User Browser / Judge UI"]
+        Browser["User Browser / Guest Judge UI"]
     end
 
     subgraph Edge Layer ["Frontend Edge Hosting (Vercel)"]
         NextWeb["Next.js 14 App Router<br/>(React Server Components + Zustand + TanStack Query)"]
-        ClerkEdge["Clerk Edge Middleware<br/>(Route Protection & Token Passing)"]
+        EdgeAuth["Session Middleware<br/>(Route Protection & Session Cookie Handling)"]
     end
 
-    subgraph Auth Provider ["Identity & Auth (Clerk)"]
-        ClerkAuth["Clerk Identity Platform<br/>(JWKS / Asymmetric RS256 Tokens)"]
-    end
-
-    subgraph Backend Layer ["Backend Cluster (Railway / Fly.io)"]
-        ReverseProxy["Reverse Proxy / SSL Termination<br/>(Proxy Headers & Sticky WS)"]
-        FastAPI["FastAPI ASGI Server (Uvicorn)<br/>(/api/projects, /api/reports, /health)"]
+    subgraph Backend Layer ["Backend Cluster (Railway / ASGI)"]
+        ReverseProxy["Reverse Proxy / SSL Termination<br/>(Proxy Headers & WebSocket Routing)"]
+        FastAPI["FastAPI ASGI Server (Uvicorn)<br/>(Tenant Scoping, Report Pipeline, Diagnostics)"]
         Worker["Async Arq Worker Service<br/>(Multi-Agent DAG Execution Swarm)"]
     end
 
-    subgraph State & Bus Layer ["Managed Cloud Infrastructure (Neon & Redis)"]
-        Postgres[("Managed PostgreSQL 16 (Neon)<br/>(pgvector Extension + Relational Schema)")]
-        RedisPubSub[("Managed Redis 7<br/>(Arq Queue Broker & Redis Pub/Sub Event Bus)")]
+    subgraph State & Bus Layer ["Managed Cloud Infrastructure"]
+        Postgres[("PostgreSQL 16 with pgvector<br/>(Relational Models, Vectors, Ownership Scoping)")]
+        RedisPubSub[("Redis 7<br/>(Task Queue Broker & Pub/Sub Event Streaming)")]
     end
 
     Browser -->|"HTTPS (REST)"| NextWeb
     Browser -->|"WSS WebSocket (?token=)"| ReverseProxy
-    Browser -->|"Auth Sign In / Sign Up"| ClerkAuth
-    NextWeb --> ClerkEdge
-    ClerkEdge -->|"Forward with Bearer Token"| ReverseProxy
+    NextWeb --> EdgeAuth
+    EdgeAuth -->|"Forward with Session Cookie / Bearer"| ReverseProxy
     ReverseProxy -->|"Proxy Headers"| FastAPI
     ReverseProxy -->|"WebSocket Upgrade"| FastAPI
-    FastAPI -->|"Verify JWKS / Upsert User"| Postgres
+    FastAPI -->|"Database Authentication / Scoped Queries"| Postgres
     FastAPI -->|"Enqueue AgentTaskCommand"| RedisPubSub
     Worker -->|"Pop Tasks & Run Agent Swarm"| RedisPubSub
-    Worker -->|"Dual-Write State & Sections"| Postgres
+    Worker -->|"Dual-Write Sections & Source Citations"| Postgres
     Worker -->|"Publish StatusEvent (report:{id}:events)"| RedisPubSub
     RedisPubSub -->|"Broadcast Live Telemetry"| FastAPI
     FastAPI -->|"Forward Live JSON Frame"| Browser
@@ -80,67 +66,138 @@ flowchart TD
 
 ---
 
-## 🧠 How the AI Layer Works
+## 🧠 Multi-Agent Orchestration & AI Provider Layer
 
-Quorum's intelligence pipeline is modeled as an asynchronous Directed Acyclic Graph governed by the **Strategy**, **Factory**, and **Command** design patterns:
+Quorum's research engine operates as an asynchronous pipeline governed by **Strategy**, **Factory**, and **Command** patterns:
 
 ### 1. Topological Multi-Agent DAG
 ```text
-                  [User Query]
-                       │
-             ┌─────────▼─────────┐
-             │ OrchestratorAgent │  (Decomposes query into 3-6 orthogonal subtopics)
-             └─────────┬─────────┘
-                       │
-         ┌─────────────┼─────────────┐   (Wavefront: asyncio.gather parallel execution)
-         ▼             ▼             ▼
-   [Researcher 1] [Researcher 2] [Researcher 3]
-         │             │             │
-         └─────────────┼─────────────┘
-                       │
-             ┌─────────▼─────────┐
-             │  FactCheckerAgent │  (Adversarial cross-examination & confidence scoring)
-             └─────────┬─────────┘
-                       │
-             ┌─────────▼─────────┐
-             │    WriterAgent    │  (Structured report synthesis & inline [n] citations)
-             └─────────┬─────────┘
-                       ▼
-            [Institutional Report]
+                  [Research Query / Ingestion Target]
+                                   │
+                         ┌─────────▼─────────┐
+                         │ OrchestratorAgent │  (Decomposes inquiry into orthogonal subtopics)
+                         └─────────┬─────────┘
+                                   │
+                     ┌─────────────┼─────────────┐   (Concurrent asyncio.gather wavefront)
+                     ▼             ▼             ▼
+               [Researcher 1] [Researcher 2] [Researcher 3]
+                     │             │             │
+                     └─────────────┼─────────────┘
+                                   │
+                         ┌─────────▼─────────┐
+                         │  FactCheckerAgent │  (Adversarial cross-examination & confidence scoring)
+                         └─────────┬─────────┘
+                                   │
+                         ┌─────────▼─────────┐
+                         │    WriterAgent    │  (Structured report synthesis & verified [n] citations)
+                         └─────────┬─────────┘
+                                   ▼
+                    [Publication-Grade Report & PDF]
 ```
 
-1. **OrchestratorAgent**: Decomposes queries into mutually exclusive, collectively exhaustive subtopics and compiles a topological task DAG.
-2. **ResearcherAgent Swarm**: Multiple independent researchers execute concurrently via `asyncio.gather`. Each worker explores primary literature, extracts key claims, and binds sources.
-3. **FactCheckerAgent**: Acts as a synchronization barrier. Ingests all candidate claims, verifies evidence against source URLs, flags contradictions, and calculates a statistical confidence score (0.0 to 1.0).
-4. **WriterAgent**: Consumes verified claims and generates cohesive, sectioned reports with interactive inline citations linked to the bibliography.
+1. **OrchestratorAgent**: Decomposes inquiries into mutually exclusive subtopics and compiles an execution task graph.
+2. **ResearcherAgent Swarm**: Dispatches concurrent workers to explore relevant literature, extract empirical findings, and bind primary source references.
+3. **FactCheckerAgent**: Acts as a verification barrier. Evaluates extracted assertions, detects conflicting claims, checks domain heuristics, and assigns confidence scores.
+4. **WriterAgent**: Synthesizes verified findings into clean, ordered report sections featuring interactive numerical citations linked to the bibliography.
 
-### 2. Multi-Provider Fault Tolerance & Strategy Pattern
-External LLM APIs are abstracted behind the `AIProvider` strategy interface:
-* **Supported Providers**:
-  * **Anthropic Claude**: Complex reasoning and multi-perspective synthesis.
-  * **OpenAI GPT**: Fast parallel research subtopic extraction.
-  * **Evorozen Neural Pulse**: Specialized neural intelligence provider.
-* **Circuit Breaker Pattern**:
-  * Tracks consecutive provider failures (threshold: 3).
-  * Automatically trips to `OPEN` state for 60 seconds to prevent resource exhaustion and cascading failures.
-  * Enters `HALF_OPEN` state after cooldown, attempting a single canary request to safely restore operations.
-* **Exponential Backoff with Jitter**: Automatically retries transient 429s or 5xx server errors with jittered backoff ($0.5s \times 2^{\text{attempt}}$).
-* **Provider Fallback Chain**: If a provider remains unavailable or trips its circuit breaker, requests fail over instantly to the next configured provider in the fallback chain.
+### 2. Provider Strategy & Isolation Model
+
+Execution providers are abstracted behind the `AIProvider` strategy interface with strict mode separation:
+
+* **Cloud Multi-Provider Chain (`mode="cloud"`) — Status: Verified UI & Generation Workflow**:
+  * Default production fallback: OpenRouter → Gemini → OpenAI.
+  * Circuit breaker tracks consecutive failures (trips to `OPEN` for 60s cooldown; attempts `HALF_OPEN` canary).
+  * Jittered exponential backoff for transient network and rate-limit errors.
+* **Local Offline Inference (`mode="local"`) — Status: Verified Selectable Local Mode**:
+  * Connects to local Ollama (`http://localhost:11434`) for air-gapped environments with zero cloud telemetry.
+* **Evorozen Neural Pulse (`mode="neural_pulse"`) — Status: Mocked-Contract Verified; Live Run Pending Credential**:
+  * Dedicated selectable provider mode.
+  * **Strict Isolation**: Neural Pulse is completely excluded from the default cloud fallback chain; choosing Cloud mode never invokes Neural Pulse, and explicit Neural Pulse mode never silently falls back to other providers.
+  * **Strict Contract**: Enforces the 2,000-character prompt limit; sends clean minimal payloads (`action_type: "chat"`, `prompt`); omits unsupported parameters.
+  * **Quota Guardrails**: Quota exhaustion is non-transient and rejects immediate retries without retry storms. Zero outbound network probes are made for status checks.
 
 ---
 
-## 💻 Full Tech Stack & Architectural Justification
+## 💻 Tech Stack & Architecture
 
-| Layer | Technology | Architectural Justification |
+| Layer | Technology | Architectural Role |
 |---|---|---|
-| **Frontend Framework** | **Next.js 14 (App Router)** | Leverages React Server Components for fast initial page loads, dynamic edge rendering, and built-in API routing. |
-| **Styling & Theming** | **Tailwind CSS + CSS Variables** | Custom design system with tokens (`bg`, `surface`, `border`, `accent`) providing accessible light/dark theme switching without layout reflows. |
-| **UI Primitives** | **shadcn/ui + Framer Motion** | Accessible, headless primitives with hardware-accelerated animations for live DAG execution telemetry and status cards. |
-| **Client State & Cache** | **Zustand + TanStack Query** | Strict separation of concerns: Zustand manages ephemeral UI drawer/modal state; TanStack Query manages asynchronous server state and caching. |
-| **Backend Framework** | **FastAPI (Python 3.11+)** | High-throughput asynchronous ASGI web framework with native type enforcement via Pydantic v2 and OpenAPI documentation. |
-| **Database & Vectors** | **PostgreSQL 16 + `pgvector` (Neon)** | ACID compliance for relations (`users`, `projects`, `reports`) paired with vector extensions for semantic source similarity search. |
-| **Task Queue & Pub/Sub** | **Redis 7 + Arq** | Pure async-native Python queue (`arq`) utilizing Redis streams for task dispatch and pub/sub channels for sub-50ms WebSocket broadcasting. |
-| **Authentication** | **Clerk** | Turnkey authentication featuring edge middleware route protection and asymmetric RS256 JWKS verification on the backend. |
+| **Frontend Framework** | **Next.js 14 (App Router)** | React Server Components for initial rendering, dynamic routing, and typed client interactions. |
+| **Design & Theming** | **Tailwind CSS + CSS Variables** | Custom tokenized design system (`bg-bg`, `bg-surface`, `text-text-primary`, `accent`) with persistent light/dark themes. |
+| **State Management** | **Zustand + TanStack Query** | Zustand for ephemeral UI drawer/modal state; TanStack Query for server cache, pagination, and polling. |
+| **Backend Framework** | **FastAPI (Python 3.11+)** | High-throughput ASGI server with Pydantic v2 schemas and native OpenAPI generation. |
+| **Database & Vectors** | **PostgreSQL 16 with `pgvector`** | Relational integrity for users, projects, reports, and sources with vector similarity support. |
+| **Asynchronous Queue** | **Redis 7 + Arq** | Asynchronous task queue for long-running multi-agent pipelines and real-time event broadcasting. |
+| **Authentication** | **Native Database Auth (Argon2id + JWT)** | Cookie-backed (`quorum_session`) and bearer authentication with strict tenant boundary enforcement and 1-Click Guest Judge access. |
+
+---
+
+## 🔒 Access Policy & Authorization Model
+
+Quorum implements a **failure-closed, tenant-isolated workspace model**:
+
+* **Authenticated Workspace Views**: Routes (`/projects`, `/reports`, `/sources`, `/agents`, `/settings`) require authenticated sessions. Unauthenticated visitors are safely redirected to `/sign-in`.
+* **Guest Judge Demo Experience**: Evaluators can enter via the one-click `"Enter as Guest Judge"` action on `/sign-in`. This establishes an ephemeral, read-only session with a dedicated `Guest Judge — Read-only` banner. All write mutations (`POST`, `PATCH`, `DELETE`) return HTTP 403 Forbidden.
+* **Curated Demo Visibility**: Guest Judges view strictly curated demo resources (projects and reports marked with `is_guest_demo=true`). Private user workspaces remain completely inaccessible.
+* **Public Report Showcase**: Explicitly curated complete demo reports and their publication-grade PDFs are accessible to anonymous visitors without login. Private owner reports and their PDFs require authentication and reject unauthenticated requests with HTTP 401 and cross-tenant requests with HTTP 403.
+* **Tenant Isolation**: Database queries enforce ownership at the SQL level (`project.user_id == current_user.id`). Authenticated non-owners cannot view, mutate, or export another tenant's reports.
+* **Admin Verification**: Administrative capabilities (system diagnostics and demo curation) require verified admin credentials. System diagnostics mask internal database host details and leak zero passwords or credentials.
+
+---
+
+## 📊 Verified Capabilities & Technical Assertions
+
+The following capabilities have been validated through end-to-end regression suites and multi-identity walkthroughs:
+
+- **Multi-Agent Research Pipeline**: Multi-agent research pipeline with report generation.
+- **Verified DOI Citation Workflow**: Verified DOI citation workflow for free-text research reports.
+- **Per-Report PDF Export**: Per-report PDF export with report-specific content.
+- **Public Showcase**: Public showcase for explicitly curated complete demo reports.
+- **Protected Authenticated Workspace**: Protected authenticated workspace with owner/non-owner isolation.
+- **Guest Judge Workspace**: Guest Judge read-only demo workspace.
+- **Repository Ingestion**: GitHub/local-folder RAG ingestion with grounded repository/file citations.
+- **Report & Source Data Wiring**: Report/source data wiring with scoped totals and pagination.
+- **Test Database Guardrails**: Isolated test database guardrails preventing automated tests from writing to production.
+- **Neural Pulse Provider Integration**: Neural Pulse provider integration implemented and mocked-test verified.
+
+---
+
+## ⚠️ Required Limitations & Scope Disclaimers
+
+To maintain strict technical documentation integrity, the following limitations are explicitly declared:
+
+1. **Neural Pulse Live Generation**: Neural Pulse live report generation is not verified because the prior credential is retired/quota-exhausted.
+2. **Automated Browser Runner**: Automated Playwright browser-driver validation was unavailable due to external driver download failure; manual browser verification was performed instead.
+3. **Academic-Domain Source Classification**: Academic-domain source classification is a URL-domain heuristic, not verified peer-review metadata.
+4. **Secret Scrubbing**: Pattern-based secret scrubbing is assistive and cannot guarantee detection of all confidential information.
+5. **Repository Indexing**: Repository indexing may be partial when file limits, excluded file types, or repository tree truncation apply.
+6. **Guest Judge Scope**: Guest Judge view exposes only curated demo resources.
+
+> **Explicit Negative Declarations**:
+> Quorum explicitly does **not** claim:
+> * Fully IEEE compliant
+> * Guaranteed hallucination-free
+> * Guaranteed secure
+> * All research databases searched
+> * Neural Pulse live generation verified
+> * All reports publicly accessible
+> * All sources peer-reviewed
+> * Plagiarism-free
+> * Legally safe
+> * Patent/novelty verified
+
+---
+
+## 🧪 Running Automated Tests
+
+Quorum enforces test isolation guardrails to guarantee automated tests never write to production data:
+
+```bash
+cd apps/api
+ENVIRONMENT=test python -m pytest tests/ -v -W error::RuntimeWarning
+```
+
+> **Test Suite Evidence**: 102 automated tests passed with no failures and no runtime warnings (`-W error::RuntimeWarning` enforced). Two upstream framework deprecation warnings were observed from dependencies (`StarletteDeprecationWarning` and `anyio.abc.BlockingPortal` deprecation warning). Production database aggregate counts remained invariant (zero deltas) before and after test execution.
 
 ---
 
@@ -148,8 +205,8 @@ External LLM APIs are abstracted behind the `AIProvider` strategy interface:
 
 ### Prerequisites
 * **Node.js**: `v20.x` or later (tested on Node `v24+`) and `npm`
-* **Python**: `3.11+` (with `uv` recommended)
-* **Docker & Docker Compose**: For local PostgreSQL and Redis
+* **Python**: `3.11+` (with virtual environment or `uv`)
+* **Docker & Docker Compose**: For local PostgreSQL with `pgvector` and Redis
 * **Git**
 
 ### 1. Clone the Repository
@@ -159,67 +216,61 @@ cd quorum
 ```
 
 ### 2. Configure Environment Variables
-Copy the template `.env.example` to create root and app-specific configuration:
+Copy the root `.env.example` template:
 ```bash
 cp .env.example .env
 ```
-Fill in your provider API keys and native database-auth settings:
+Configure your database connection, Redis URL, server secret, and optional AI provider credentials:
 ```ini
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/quorum
 REDIS_URL=redis://localhost:6379/0
 
-ANTHROPIC_API_KEY=your_anthropic_api_key
+# Cloud Inference Providers
+OPENROUTER_API_KEY=your_openrouter_api_key
+GEMINI_API_KEY=your_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key
-NEURAL_PULSE_API_KEY=your_neural_pulse_api_key
+NEURAL_PULSE_API_KEY=
 
+# Authentication Secret
 AUTH_SECRET_KEY=replace_with_a_long_random_server_secret
-ADMIN_EMAILS=admin@example.com
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 ```
 
-### 3. Spin Up Infrastructure via Docker Compose
-Start local PostgreSQL with `pgvector` and Redis:
+### 3. Start Infrastructure
 ```bash
 docker compose up -d postgres redis
 ```
-*(Or spin up the full multi-container stack with `docker compose up --build`)*.
 
-### 4. Run Database Migrations
-Navigate to `apps/api` and apply Alembic migrations:
+### 4. Run Migrations
 ```bash
 cd apps/api
-# If using uv (recommended):
-uv sync
-uv run alembic upgrade head
-
-# Or standard pip virtual environment:
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# On Windows: .venv\Scripts\activate
+# On Linux/macOS: source .venv/bin/activate
 pip install -e .
 alembic upgrade head
 ```
 
-### 5. Start the Backend API Server
+### 5. Launch Backend Server
 ```bash
-# In apps/api directory:
-uv run uvicorn src.main:app --reload --port 8000
+uvicorn src.main:app --reload --host 127.0.0.1 --port 8000
 ```
-Verify the server is running:
+Verify health:
 ```bash
-curl http://localhost:8000/health
+curl http://127.0.0.1:8000/health
 # {"status":"ok"}
 ```
 
-### 6. Start the Asynchronous Task Worker
-In a separate terminal, launch the Arq worker process:
+### 6. Launch Asynchronous Worker
+In a separate terminal with virtual environment active:
 ```bash
 cd apps/api
-uv run python -m src.workers.main
+python -m src.workers.main
 ```
 
-### 7. Start the Frontend Development Server
-In another terminal, launch the Next.js frontend:
+### 7. Launch Frontend
+In a separate terminal:
 ```bash
 cd apps/web
 npm install
@@ -229,64 +280,28 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🧪 Running Automated Tests
-
-Run the full end-to-end test suite (authentication, rate limiting, DAG orchestration, circuit breaker):
-```bash
-cd apps/api
-uv run pytest tests/ -v
-```
-
----
-
-## 🚀 Advanced Extensions (Lane F)
-
-Quorum features modular extensions designed for enterprise privacy, code intelligence, and open tool interoperability:
-
-### 1. Offline & Air-Gapped AI Inference (Local Ollama)
-- **Local Provider Strategy**: `OllamaProvider(AIProvider)` connects to `http://localhost:11434` supporting `llama3`, `mistral`, `qwen2.5`, `phi3`, and `deepseek-r1`.
-- **Zero Cloud Telemetry**: When configured in `local` mode, all cloud API calls (OpenRouter, Gemini, OpenAI) are bypassed, providing guaranteed air-gapped security for sensitive enterprise research.
-- **Automated Health Check**: Real-time probe of `/api/tags` detects local server availability and alerts the evaluator if `ollama serve` is not active.
-
-### 2. Codebase & GitHub Repo Paper Generator (`DocumentAnalysisAgent`)
-- **Topological Repo Decomposition**: Ingests public GitHub URLs (`https://github.com/owner/repo`) or local folder trees (via Chromium File System Access API).
-- **Parallel Module Analysis**: Decomposes code repositories into architectural areas (topologies, state synchronization, concurrency patterns, and algorithmic complexity bounds).
-- **Formal Paper Output**: Synthesizes formal research papers and architecture specifications with citations and module diagrams.
-
-### 3. Model Context Protocol (MCP) Plugin Extension Point
-- **`PluginAgent` Base Class**: Standard interface wrapping Model Context Protocol tool servers to allow pluggable agent capabilities.
-- **Dynamic `MCPPluginRegistry`**: Discovers and routes agent tasks to external MCP servers via JSON-RPC 2.0.
-- **Reference Implementation (`AcademicDOIVerifierPlugin`)**: Connects to academic registry MCP servers to cross-verify DOIs against ACM Digital Library, arXiv, and Crossref.
-
----
-
 ## 📁 Repository Structure
 
 ```text
 quorum/
 ├── apps/
-│   ├── web/                    # Next.js 14 frontend (App Router, Tailwind, Zustand)
-│   │   ├── src/app/            # App Router pages (/reports/[id], /sign-in, /sign-up)
-│   │   ├── src/components/     # UI primitives, pipeline visualization, report views
-│   │   ├── src/hooks/          # useReportEvents (WebSocket), useProjects, useReports
-│   │   └── src/lib/            # Typed API client with auto-attaching auth headers
-│   └── api/                    # FastAPI backend
+│   ├── web/                    # Next.js 14 App Router frontend
+│   │   ├── src/app/            # Routes: Landing, Dashboard, Reports, Sources, Sign-In
+│   │   ├── src/components/     # UI design system, pipeline diagrams, cards, badges
+│   │   ├── src/hooks/          # Query hooks (useProjects, useReports, useProvidersStatus)
+│   │   └── src/lib/            # Type-safe API client and session management
+│   └── api/                    # FastAPI ASGI backend
 │       ├── alembic/            # Database schema migrations
-│       ├── src/agents/         # Multi-agent orchestration engine, DAG, providers, and MCP plugins
-│       ├── src/api/            # REST API routers (/projects, /reports, /health)
-│       ├── src/core/           # Circuit breaker, Redis client, rate limiter, security
-│       ├── src/db/             # SQLAlchemy 2.0 async declarative models and sessions
-│       ├── src/services/       # GitHub connector and external ingestion pipelines
-│       ├── src/workers/        # Arq background worker and command queue
-│       └── tests/              # Pytest suite covering full multi-agent DAG and Lane F plugins
-├── packages/
-│   └── shared-types/           # TypeScript types shared between web and tooling
-├── infra/
-│   ├── docker-compose.yml      # Infrastructure service definitions
-│   └── migrations/             # Database migration artifacts
+│       ├── src/agents/         # Multi-agent DAG engine, providers, and task definitions
+│       ├── src/api/            # REST endpoints (auth, projects, reports, sources, admin)
+│       ├── src/core/           # Circuit breaker, rate limiting, and security dependencies
+│       ├── src/db/             # Declarative SQLAlchemy models and session management
+│       ├── src/workers/        # Arq background worker and streaming publishers
+│       └── tests/              # 102-test automated regression suite
+├── docs/                       # System documentation and architecture specifications
 ├── .env.example                # Canonical environment variable template
-├── Procfile                    # Production process definitions (web, worker, release)
-└── README.md                   # Project documentation
+├── docker-compose.yml          # Local container service definitions
+└── README.md                   # System documentation
 ```
 
 ---

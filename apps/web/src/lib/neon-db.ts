@@ -1,19 +1,10 @@
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-
-function getDatabaseUrl(): string {
-  return (
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    "postgresql://neondb_owner:npg_LZS35mcWrDBn@ep-falling-mud-b312nr2e-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+/**
+ * Direct Neon database access from Next.js is strictly disabled.
+ * All multi-tenant data operations must flow through the FastAPI backend
+ * to ensure strict authentication, tenant scoping, and durable audit logs.
+ */
+export function getDb(): never {
+  throw new Error(
+    "Direct Neon database access from Next.js is disabled to protect tenant isolation. All data access must route through the FastAPI backend."
   );
-}
-
-let sqlInstance: NeonQueryFunction<false, false> | null = null;
-
-export function getDb() {
-  if (!sqlInstance) {
-    const url = getDatabaseUrl();
-    sqlInstance = neon(url);
-  }
-  return sqlInstance;
 }

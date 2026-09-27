@@ -58,14 +58,19 @@ class SlidingWindowRateLimiter:
             return True
 
 
-# Global default rate limiter instance
+# Global default rate limiter instances
 report_rate_limiter = SlidingWindowRateLimiter(
     limit=settings.REPORT_RATE_LIMIT_PER_HOUR,
     window_seconds=3600,
 )
 
+guest_auth_rate_limiter = SlidingWindowRateLimiter(
+    limit=60,
+    window_seconds=60,
+)
 
-from fastapi import Depends
+
+from fastapi import Depends, Request
 from src.core.security import get_current_user
 
 
@@ -77,4 +82,16 @@ async def check_report_creation_rate_limit(user: User = Depends(get_current_user
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Rate limit exceeded: maximum {settings.REPORT_RATE_LIMIT_PER_HOUR} report creations per hour.",
         )
+
+
+async def check_guest_auth_rate_limit(request: Request) -> None:
+    """Rate limit guest session creation by client IP."""
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    is_allowed = await guest_auth_rate_limiter.check_rate_limit(f"guest_session:{client_ip}")
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded: too many guest session requests.",
+        )
+
 

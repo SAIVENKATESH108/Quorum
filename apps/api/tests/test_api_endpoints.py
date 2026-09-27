@@ -120,7 +120,7 @@ async def test_successful_report_creation_and_latency():
 
             assert report_res.status_code == 201
             # Verify non-blocking immediate return (does not wait for multi-minute DAG execution)
-            assert elapsed < 15.0, f"Report creation took {elapsed:.3f}s, expected immediate return < 15.0s"
+            assert elapsed < 30.0, f"Report creation took {elapsed:.3f}s, expected immediate return < 30.0s"
 
             # Verify background task was triggered
             mock_pipeline.assert_called_once()

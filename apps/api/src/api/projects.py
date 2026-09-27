@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_user_project
 from src.core.events import format_report_channel, publish_event
 from src.core.rate_limiter import check_report_creation_rate_limit
-from src.core.security import get_current_user
-from src.db.models import Project, Report, ReportStatus, User
+from src.core.security import get_current_user, require_non_guest_write_access
+from src.db.models import Project, Report, ReportStatus, User, UserRole
 from src.db.session import async_session_maker, get_db
 from src.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
 from src.schemas.reports import (
@@ -63,6 +63,7 @@ async def _run_report_pipeline_background(
     response_model=ProjectResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new project",
+    dependencies=[Depends(require_non_guest_write_access)],
 )
 async def create_project(
     payload: ProjectCreate,
@@ -92,12 +93,13 @@ async def list_projects(
 ) -> List[ProjectResponse]:
     """Retrieve all projects belonging to the authenticated user or workspace."""
     stmt = select(Project).order_by(Project.created_at.desc())
-    is_admin_or_judge = (
-        current_user.role == "admin"
-        or current_user.email == "judge@quorum.ai"
-    )
-    if not is_admin_or_judge:
+    if current_user.role == UserRole.GUEST.value:
+        stmt = stmt.where(Project.is_guest_demo == True)
+    elif current_user.role == UserRole.ADMIN.value:
+        pass
+    else:
         stmt = stmt.where(Project.user_id == current_user.id)
+
     result = await db.execute(stmt)
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]
@@ -119,6 +121,7 @@ async def get_project_detail(
     "/{project_id}",
     response_model=ProjectResponse,
     summary="Update project title",
+    dependencies=[Depends(require_non_guest_write_access)],
 )
 async def update_project(
     payload: ProjectUpdate,
@@ -136,6 +139,7 @@ async def update_project(
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a project",
+    dependencies=[Depends(require_non_guest_write_access)],
 )
 async def delete_project(
     project: Project = Depends(get_user_project),
@@ -151,7 +155,7 @@ async def delete_project(
     response_model=ReportCreateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new report in project",
-    dependencies=[Depends(check_report_creation_rate_limit)],
+    dependencies=[Depends(require_non_guest_write_access), Depends(check_report_creation_rate_limit)],
 )
 async def create_report(
     payload: ReportCreate,
@@ -163,12 +167,37 @@ async def create_report(
     Create a new report in pending status, schedule background DAG execution,
     and return report_id immediately (<500ms).
     """
+    provider_mode = payload.provider_mode or "cloud"
+    if provider_mode in ("neural_pulse", "neural-pulse", "evorozen"):
+        from src.agents.providers import get_provider_observation
+        from src.core.config import settings
+
+        if len(payload.query) > 2000:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The selected content exceeds Neural Pulse's supported prompt size for a single request. Use another provider or reduce the request.",
+            )
+
+        np_key = (getattr(settings, "NEURAL_PULSE_API_KEY", None) or "").strip()
+        if not np_key:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Neural Pulse provider is not configured. Please configure an API key or select another provider.",
+            )
+
+        obs = get_provider_observation("NeuralPulse")
+        if obs and obs.get("status") == "quota_exhausted":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Neural Pulse quota is currently exhausted. Select another provider or try again after quota is available.",
+            )
+
     report = Report(
         id=uuid.uuid4(),
         project_id=project.id,
         query=payload.query,
         status=ReportStatus.PENDING,
-        provider_mode=payload.provider_mode or "cloud",
+        provider_mode=provider_mode,
         source_type=payload.source_type or "query",
         source_ref=payload.source_ref,
     )
@@ -182,7 +211,6 @@ async def create_report(
             report.id, payload.query, client_file_tree=payload.file_tree
         )
     )
-
 
     return ReportCreateResponse(
         id=report.id,
@@ -200,6 +228,7 @@ async def create_report(
 )
 async def list_project_reports(
     project: Project = Depends(get_user_project),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> List[ReportSummaryResponse]:
     """List all reports belonging to a specified project."""
@@ -208,6 +237,9 @@ async def list_project_reports(
         .where(Report.project_id == project.id)
         .order_by(Report.created_at.desc())
     )
+    if current_user.role == UserRole.GUEST.value:
+        stmt = stmt.where(Report.is_guest_demo == True)
     result = await db.execute(stmt)
     reports = result.scalars().all()
     return [ReportSummaryResponse.model_validate(r) for r in reports]
+

@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
   BookOpen,
   Copy,
   Download,
   ExternalLink,
   FileCode,
   Globe,
+  Info,
+  RefreshCw,
   Search,
+  Shield,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -24,79 +28,98 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, HarvestedSourceItem, HarvestedSourceStats } from "@/lib/api-client";
+import { useAuth } from "@/components/auth-provider";
 
-interface SourceItem {
-  id: string;
-  url: string;
-  title: string;
-  domain: string;
-  category: "academic" | "technical" | "financial" | "general";
-  report_id?: string;
-  report_title?: string;
-  citation_count: number;
-  verified: boolean;
-  confidence: number;
-}
+const CATEGORY_OPTIONS = [
+  { id: "all", label: "All Sources" },
+  { id: "academic", label: "Academic & arXiv" },
+  { id: "technical", label: "Tech & GitHub" },
+  { id: "financial", label: "Financial / Regulatory" },
+  { id: "general", label: "General & Web" },
+] as const;
+
+type FetchState = "idle" | "loading" | "success" | "error";
 
 export default function SourcesExplorerPage() {
   const { toast } = useToast();
-  const [sources, setSources] = useState<SourceItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const isGuest = user?.role === "guest";
+
+  const [sources, setSources] = useState<HarvestedSourceItem[]>([]);
+  const [stats, setStats] = useState<HarvestedSourceStats | null>(null);
+  const [listState, setListState] = useState<FetchState>("idle");
+  const [statsState, setStatsState] = useState<FetchState>("idle");
+  const [listError, setListError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  useEffect(() => {
-    async function loadSources() {
-      setIsLoading(true);
-      try {
-        const data = await apiClient.getSources();
-        setSources(
-          (data || []).map((source) => ({
-            id: source.id,
-            url: source.url,
-            title: source.title,
-            domain: source.domain,
-            category: source.category as SourceItem["category"],
-            report_id: source.report_id ?? undefined,
-            report_title: source.report_title ?? undefined,
-            citation_count: source.citation_count ?? 1,
-            verified: source.verified ?? true,
-            confidence: source.confidence ?? 0.95,
-          })),
-        );
-      } catch (err) {
-        console.error("Failed to load sources:", err);
-        // Evidence is API-backed only: report the empty library honestly instead
-        // of substituting invented citations.
-        setSources([]);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadData = useCallback(async (category: string) => {
+    setListState("loading");
+    setStatsState("loading");
+    setListError(null);
+    setStatsError(null);
+
+    const categoryParam = category !== "all" ? category : undefined;
+
+    // Parallel fetch — list and stats must use the same category filter and visibility scope
+    const [listResult, statsResult] = await Promise.allSettled([
+      apiClient.getSources({ category: categoryParam }),
+      apiClient.getSourceStats({ category: categoryParam }),
+    ]);
+
+    if (listResult.status === "fulfilled") {
+      setSources(listResult.value);
+      setListState("success");
+    } else {
+      const err = listResult.reason as Error;
+      setListError(err.message || "Failed to load sources");
+      setSources([]);
+      setListState("error");
     }
-    loadSources();
+
+    if (statsResult.status === "fulfilled") {
+      setStats(statsResult.value);
+      setStatsState("success");
+    } else {
+      const err = statsResult.reason as Error;
+      setStatsError(err.message || "Failed to load source statistics");
+      setStats(null);
+      setStatsState("error");
+    }
   }, []);
 
-  const filteredSources = sources.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.url.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.domain.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.report_title && item.report_title.toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(() => {
+    void loadData(selectedCategory);
+  }, [loadData, selectedCategory]);
 
-    const matchesCat = selectedCategory === "all" || item.category === selectedCategory;
-    return matchesSearch && matchesCat;
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat);
+    setSearchQuery("");
+  };
+
+  // Client-side search filter only — category filtering is already server-side
+  const filteredSources = sources.filter((item) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.url.toLowerCase().includes(q) ||
+      item.domain.toLowerCase().includes(q) ||
+      (item.report_title && item.report_title.toLowerCase().includes(q))
+    );
   });
 
-  const academicCount = sources.filter((s) => s.category === "academic").length;
+  const verifiedCount = sources.filter((s) => s.verified).length;
   const verifiedRate = sources.length > 0
-    ? Math.round((sources.filter((s) => s.verified).length / sources.length) * 100)
-    : 100;
+    ? Math.round((verifiedCount / sources.length) * 100)
+    : 0;
   const meanConfidence = sources.length > 0
-    ? (sources.reduce((sum, source) => sum + source.confidence, 0) / sources.length) * 100
+    ? (sources.reduce((sum, s) => sum + (s.confidence ?? 0.95), 0) / sources.length) * 100
     : 0;
 
-  const copyCitation = (item: SourceItem, format: "bibtex" | "markdown") => {
+  const copyCitation = (item: HarvestedSourceItem, format: "bibtex" | "markdown") => {
     let text = "";
     if (format === "markdown") {
       text = `[${item.title}](${item.url})`;
@@ -114,7 +137,7 @@ export default function SourcesExplorerPage() {
   const downloadAllBibtex = () => {
     const entries = filteredSources.map((item, idx) => {
       const citeKey = `quorum_${item.category}_${idx + 1}`;
-      return `@misc{${citeKey},\n  title = {${item.title}},\n  url = {${item.url}},\n  note = {Verified by Quorum Fact-Checker Swarm (Confidence: ${Math.round(item.confidence * 100)}%)},\n  year = {2026}\n}`;
+      return `@misc{${citeKey},\n  title = {${item.title}},\n  url = {${item.url}},\n  note = {Verified by Quorum Fact-Checker Swarm (Confidence: ${Math.round((item.confidence ?? 0.95) * 100)}%)},\n  year = {2026}\n}`;
     }).join("\n\n");
 
     const blob = new Blob([entries], { type: "text/plain;charset=utf-8" });
@@ -133,6 +156,8 @@ export default function SourcesExplorerPage() {
     });
   };
 
+  const hasError = listState === "error" || statsState === "error";
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
@@ -140,7 +165,7 @@ export default function SourcesExplorerPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2.5">
             <BookOpen className="h-6 w-6 text-accent" />
-            <span>Sources &amp; Evidence Explorer</span>
+            <span>Sources & Evidence Explorer</span>
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             Global repository of primary literature, academic DOIs, and verified evidence harvested by research swarms.
@@ -148,6 +173,17 @@ export default function SourcesExplorerPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          {hasError && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadData(selectedCategory)}
+              className="gap-2 shadow-xs"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Retry</span>
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -161,8 +197,31 @@ export default function SourcesExplorerPage() {
         </div>
       </div>
 
+      {/* Guest read-only banner */}
+      {isGuest && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-500">
+          <Shield className="h-4 w-4 shrink-0" />
+          <span className="font-semibold">Guest Judge — Read-only</span>
+          <span className="text-xs text-text-secondary hidden sm:inline">
+            — You are viewing sources from curated demo reports only.
+          </span>
+        </div>
+      )}
+
+      {/* Error banners */}
+      {statsError && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Source statistics unavailable</p>
+            <p className="text-xs text-text-secondary mt-0.5">{statsError}</p>
+          </div>
+        </div>
+      )}
+
       {/* Stats Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        {/* Total Evidence — backend-authoritative COUNT(DISTINCT sources.id) */}
         <Card className="border-border bg-surface shadow-xs">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-medium text-text-secondary uppercase tracking-wider flex items-center justify-between">
@@ -170,29 +229,47 @@ export default function SourcesExplorerPage() {
               <Globe className="h-4 w-4 text-text-secondary opacity-70" />
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-text-primary pt-1">
-              {sources.length}
+              {statsState === "loading" ? (
+                <Skeleton className="h-7 w-12" />
+              ) : statsError ? (
+                <span className="text-text-secondary text-base">—</span>
+              ) : (
+                stats?.total ?? 0
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 text-xs text-text-secondary">
-            Primary URLs across all user research investigations.
+            Unique authorized visible sources
+            {selectedCategory !== "all" && (
+              <span className="ml-1 text-accent">({selectedCategory} filter)</span>
+            )}.
           </CardContent>
         </Card>
 
+        {/* Academic-Domain Sources — heuristic only, NOT peer-review */}
         <Card className="border-border bg-surface shadow-xs">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-medium text-text-secondary uppercase tracking-wider flex items-center justify-between">
-              <span>Peer-Reviewed Literature</span>
+              <span>Academic-Domain Sources</span>
               <BookOpen className="h-4 w-4 text-accent" />
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-accent pt-1">
-              {academicCount}
+              {statsState === "loading" ? (
+                <Skeleton className="h-7 w-12" />
+              ) : statsError ? (
+                <span className="text-text-secondary text-base">—</span>
+              ) : (
+                stats?.academic_domain_count ?? 0
+              )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 text-xs text-text-secondary">
-            arXiv, Nature, IEEE, and academic publishers.
+          <CardContent className="pt-0 text-xs text-text-secondary flex items-start gap-1">
+            <Info className="h-3 w-3 shrink-0 mt-0.5 opacity-60" />
+            <span>Inferred from source URL domain; not a verified peer-review classification.</span>
           </CardContent>
         </Card>
 
+        {/* Adversarial Audit Pass Rate */}
         <Card className="border-border bg-surface shadow-xs">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-medium text-text-secondary uppercase tracking-wider flex items-center justify-between">
@@ -200,7 +277,11 @@ export default function SourcesExplorerPage() {
               <ShieldCheck className="h-4 w-4 text-success" />
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-success pt-1">
-              {verifiedRate}%
+              {listState === "loading" ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                `${verifiedRate}%`
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 text-xs text-text-secondary">
@@ -208,6 +289,7 @@ export default function SourcesExplorerPage() {
           </CardContent>
         </Card>
 
+        {/* Mean Confidence Score */}
         <Card className="border-border bg-surface shadow-xs">
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-medium text-text-secondary uppercase tracking-wider flex items-center justify-between">
@@ -215,7 +297,11 @@ export default function SourcesExplorerPage() {
               <Sparkles className="h-4 w-4 text-warning" />
             </CardDescription>
             <CardTitle className="text-2xl font-bold text-text-primary pt-1">
-              {meanConfidence.toFixed(1)}%
+              {listState === "loading" ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                `${meanConfidence.toFixed(1)}%`
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 text-xs text-text-secondary">
@@ -224,7 +310,7 @@ export default function SourcesExplorerPage() {
         </Card>
       </div>
 
-      {/* Search & Category Filter Chips */}
+      {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-secondary" />
@@ -237,18 +323,12 @@ export default function SourcesExplorerPage() {
           />
         </div>
 
-        {/* Category Pills */}
+        {/* Category Pills — selection triggers server-side re-fetch */}
         <div className="flex flex-wrap items-center gap-1.5 bg-surface border border-border rounded-control p-1 text-xs">
-          {[
-            { id: "all", label: "All Sources" },
-            { id: "academic", label: "Academic & arXiv" },
-            { id: "technical", label: "Tech & GitHub" },
-            { id: "financial", label: "Financial / Regulatory" },
-            { id: "general", label: "General & Web" },
-          ].map((cat) => (
+          {CATEGORY_OPTIONS.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              onClick={() => handleCategoryChange(cat.id)}
               className={`px-3 py-1.5 rounded-xs font-medium transition-colors ${
                 selectedCategory === cat.id
                   ? "bg-accent text-white shadow-xs"
@@ -261,14 +341,47 @@ export default function SourcesExplorerPage() {
         </div>
       </div>
 
+      {/* Active filter indicator */}
+      {selectedCategory !== "all" && (
+        <p className="text-xs text-text-secondary flex items-center gap-1.5">
+          <Info className="h-3 w-3" />
+          <span>
+            Showing <strong>{selectedCategory}</strong>-domain sources. Statistics above reflect this filter.{" "}
+            <button
+              onClick={() => handleCategoryChange("all")}
+              className="text-accent underline underline-offset-2"
+            >
+              Clear filter
+            </button>
+          </span>
+        </p>
+      )}
+
+      {/* List error state */}
+      {listState === "error" && (
+        <Card className="border-red-500/30 bg-red-500/5 text-center py-10 px-4">
+          <CardContent className="flex flex-col items-center space-y-4">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-text-primary">Failed to load sources</h3>
+              <p className="text-sm text-text-secondary max-w-sm">{listError}</p>
+            </div>
+            <Button size="sm" onClick={() => loadData(selectedCategory)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Sources Table / List */}
-      {isLoading ? (
+      {listState === "loading" ? (
         <div className="space-y-3">
           <Skeleton className="h-24 w-full rounded-card" />
           <Skeleton className="h-24 w-full rounded-card" />
           <Skeleton className="h-24 w-full rounded-card" />
         </div>
-      ) : filteredSources.length === 0 ? (
+      ) : listState === "success" && filteredSources.length === 0 ? (
         <Card className="border-dashed border-border bg-surface/40 text-center py-12 px-4">
           <CardContent className="flex flex-col items-center justify-center space-y-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
@@ -279,15 +392,29 @@ export default function SourcesExplorerPage() {
                 No matching evidence found
               </h3>
               <p className="text-sm text-text-secondary max-w-sm">
-                Try adjusting your search criteria or deploy a new research swarm to discover primary literature.
+                {searchQuery
+                  ? "Try adjusting your search terms."
+                  : selectedCategory !== "all"
+                  ? `No ${selectedCategory}-domain sources found in the current scope.`
+                  : "No sources have been harvested yet. Deploy a research swarm to begin."}
               </p>
             </div>
-            <Button asChild size="sm">
-              <Link href="/reports/new">Launch Research Query</Link>
-            </Button>
+            {searchQuery ? (
+              <Button size="sm" variant="outline" onClick={() => setSearchQuery("")}>
+                Clear search
+              </Button>
+            ) : selectedCategory !== "all" ? (
+              <Button size="sm" variant="outline" onClick={() => handleCategoryChange("all")}>
+                Clear filter
+              </Button>
+            ) : !isGuest ? (
+              <Button asChild size="sm">
+                <Link href="/reports/new">Launch Research Query</Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
-      ) : (
+      ) : listState === "success" ? (
         <div className="space-y-3">
           {filteredSources.map((item) => (
             <Card
@@ -303,9 +430,19 @@ export default function SourcesExplorerPage() {
                     <Badge variant={item.verified ? "complete" : "pending"} className="text-[11px]">
                       {item.verified ? "Fact-Checked & Verified" : "Needs Review"}
                     </Badge>
-                    <span className="text-[11px] text-text-secondary">
-                      Cited in {item.citation_count} {item.citation_count === 1 ? "claim" : "claims"}
-                    </span>
+                    {/* linked_report_count: COUNT(DISTINCT report_sources.report_id) */}
+                    {(item.linked_report_count ?? 0) > 0 && (
+                      <span className="text-[11px] text-text-secondary">
+                        Linked to {item.linked_report_count}{" "}
+                        {item.linked_report_count === 1 ? "report" : "reports"}
+                      </span>
+                    )}
+                    {/* occurrence_count: reference row count, shown only when > linked_report_count */}
+                    {(item.occurrence_count ?? 0) > (item.linked_report_count ?? 0) && (
+                      <span className="text-[11px] text-text-secondary opacity-70">
+                        ({item.occurrence_count} references)
+                      </span>
+                    )}
                   </div>
 
                   <a
@@ -320,7 +457,7 @@ export default function SourcesExplorerPage() {
 
                   {item.report_title && (
                     <p className="text-xs text-text-secondary flex items-center gap-1.5 truncate">
-                      <span>Cited in report:</span>
+                      <span>First cited in:</span>
                       <span className="font-medium text-text-primary/90">{item.report_title}</span>
                     </p>
                   )}
@@ -349,7 +486,11 @@ export default function SourcesExplorerPage() {
                     <span>BibTeX</span>
                   </Button>
 
-                  <Button asChild size="sm" className="h-8 px-2.5 text-xs gap-1.5 bg-surface-hover hover:bg-accent hover:text-white text-text-primary border border-border">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-8 px-2.5 text-xs gap-1.5 bg-surface-hover hover:bg-accent hover:text-white text-text-primary border border-border"
+                  >
                     <a href={item.url} target="_blank" rel="noopener noreferrer">
                       <span>Visit</span>
                       <ExternalLink className="h-3 w-3" />
@@ -360,7 +501,7 @@ export default function SourcesExplorerPage() {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, CheckCircle2, ExternalLink, ShieldCheck } from "lu
 import { ReportLiveClient } from "./report-live-client";
 import { ReportDetailResponse } from "@/lib/api-client";
 import { serverStore } from "@/lib/server-store";
+import { isDevelopmentFixtureAllowed } from "@/lib/backend-proxy";
 
 interface PageProps {
   params: {
@@ -15,9 +16,9 @@ interface PageProps {
 }
 
 /**
- * Resolves a report from the FastAPI backend, falling back to the local server
- * store for reports created while the backend was unreachable. A missing report
- * is reported as not-found: no synthesized placeholder report is returned.
+ * Resolves a report from the FastAPI backend. If the backend is unreachable
+ * or the report is not found, returns null so notFound() is triggered.
+ * Unsafe serverStore queries are strictly gated behind local development fixtures.
  */
 async function getReportData(reportId: string): Promise<ReportDetailResponse | null> {
   const requestHeaders = headers();
@@ -63,11 +64,16 @@ async function getReportData(reportId: string): Promise<ReportDetailResponse | n
       }
     }
   } catch {
-    // Fall through to local store
+    // Backend proxy unavailable
   }
 
-  return await serverStore.getReport(reportId);
+  if (isDevelopmentFixtureAllowed()) {
+    return await serverStore.getReport(reportId);
+  }
+
+  return null;
 }
+
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const report = await getReportData(params.reportId);

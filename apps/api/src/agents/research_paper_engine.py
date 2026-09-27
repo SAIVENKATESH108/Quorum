@@ -43,10 +43,11 @@ _SCRUB_PATTERNS = [
     (re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b"), "email_address"),
     (re.compile(r"\b(?:https?://[^\s]+@[^\s]+)\b"), "url_with_credentials"),
     (re.compile(r"(?i)\b(?:password|passwd|secret|token|api[_\-]?key|bearer|access[_\-]?key|private[_\-]?key)\s*[:=]\s*\S+"), "credential"),
-    (re.compile(r"(?i)\b(?:sk-[a-zA-Z0-9]{20,}|evo_live_[a-zA-Z0-9]+|ghp_[a-zA-Z0-9]+|npm_[a-zA-Z0-9]+)\b"), "api_key"),
+    (re.compile(r"(?i)\b(?:sk-[a-zA-Z0-9_\-]{16,}|evo_live_[a-zA-Z0-9_\-]+|ghp_[a-zA-Z0-9_\-]+|npm_[a-zA-Z0-9_\-]+)\b"), "api_key"),
     (re.compile(r"\b(?:postgresql|mysql|mongodb|redis)://[^\s]+\b"), "database_connection_string"),
     (re.compile(r"(?i)\b(?:\d{4}[-\s]?){4}\b"), "potential_card_number"),
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "ssn_pattern"),
+    (re.compile(r"-----BEGIN [A-Z\s]+PRIVATE KEY-----[\s\S]*?-----END [A-Z\s]+PRIVATE KEY-----"), "private_key"),
     (re.compile(r"(?i)\blocalhost\b|\b127\.0\.0\.1\b|\b10\.\d+\.\d+\.\d+\b|\b192\.168\.\d+\.\d+\b"), "private_network_address"),
     (re.compile(r"(?i)\b[a-z0-9\-]+\.internal\b|\b[a-z0-9\-]+\.corp\b|\b[a-z0-9\-]+\.local\b"), "internal_hostname"),
 ]
@@ -54,7 +55,7 @@ _SCRUB_PATTERNS = [
 
 def scrub_text(text: str) -> Dict[str, Any]:
     """
-    Scan text for likely sensitive patterns.
+    Scan text for likely sensitive patterns while preserving exact line provenance.
 
     Returns:
         {
@@ -65,32 +66,51 @@ def scrub_text(text: str) -> Dict[str, Any]:
 
     NOTE: Automated scrubbing assists review but CANNOT guarantee detection of
     all sensitive information. The user must review and confirm before transmitting.
+    Guarantees line count stability (line numbers never shift across redactions).
     """
-    findings = []
-    sanitized = text
+    raw_findings = []
 
     for pattern, label in _SCRUB_PATTERNS:
         for m in pattern.finditer(text):
-            findings.append({
+            raw_findings.append({
                 "type": label,
                 "excerpt": m.group()[:50] + ("..." if len(m.group()) > 50 else ""),
                 "start": m.start(),
                 "end": m.end(),
             })
 
-    # Replace from end to start to preserve offsets
-    sorted_findings = sorted(findings, key=lambda f: f["start"], reverse=True)
-    for f in sorted_findings:
-        sanitized = sanitized[: f["start"]] + f"[REDACTED:{f['type']}]" + sanitized[f["end"]:]
+    # De-overlap intervals: sort by start ascending, then length descending
+    sorted_raw = sorted(raw_findings, key=lambda f: (f["start"], -(f["end"] - f["start"])))
+    merged_findings = []
+    for f in sorted_raw:
+        if not merged_findings:
+            merged_findings.append(f)
+        else:
+            prev = merged_findings[-1]
+            if f["start"] < prev["end"]:
+                # Overlap detected: expand previous if current extends further
+                if f["end"] > prev["end"]:
+                    prev["end"] = f["end"]
+                    prev["excerpt"] = text[prev["start"] : prev["end"]][:50]
+            else:
+                merged_findings.append(f)
+
+    # Replace from end to start to preserve character offsets while preserving exact newline count
+    sanitized = text
+    for f in sorted(merged_findings, key=lambda x: x["start"], reverse=True):
+        matched_slice = text[f["start"] : f["end"]]
+        nl_count = matched_slice.count("\n")
+        replacement = f"[REDACTED:{f['type']}]" + ("\n" * nl_count)
+        sanitized = sanitized[: f["start"]] + replacement + sanitized[f["end"] :]
 
     return {
-        "findings": findings,
+        "findings": merged_findings,
         "sanitized": sanitized,
         "warning": (
             "Automated scrubbing assists review but cannot guarantee detection of all "
             "sensitive information. Review the sanitized content carefully before confirming."
         ),
-        "finding_count": len(findings),
+        "finding_count": len(merged_findings),
     }
 
 

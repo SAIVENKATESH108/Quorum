@@ -189,6 +189,31 @@ async def test_writer_agent_codebase_synthesis_and_blob_urls():
     from unittest.mock import AsyncMock
 
     provider = AsyncMock()
+    provider.complete = AsyncMock(
+        return_value='''{
+            "title": "Architecture Specification: astral-sh/uv",
+            "sections": [
+                {
+                    "heading": "1. Executive Summary & Architecture Overview",
+                    "content": "astral-sh/uv architecture is organized around src/main.py and src/engine.py.",
+                    "order_index": 1,
+                    "citations": ["https://github.com/astral-sh/uv/blob/main/src/main.py#L1-L85"]
+                },
+                {
+                    "heading": "2. Core Module Decomposition & File Organization",
+                    "content": "Core modules include src/main.py and src/engine.py.",
+                    "order_index": 2,
+                    "citations": ["https://github.com/astral-sh/uv/blob/main/src/engine.py#L1-L120"]
+                },
+                {
+                    "heading": "3. Execution Lifecycle & Data Flow",
+                    "content": "Initializes task engine asynchronously through src/engine.py and src/main.py.",
+                    "order_index": 3,
+                    "citations": ["https://github.com/astral-sh/uv/blob/main/src/main.py#L1-L85"]
+                }
+            ]
+        }'''
+    )
     writer = WriterAgent(provider=provider)
 
     key_files = [

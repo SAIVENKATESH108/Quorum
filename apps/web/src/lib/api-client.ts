@@ -61,6 +61,17 @@ export interface ReportDetailResponse extends ReportSummaryResponse {
   sources: SourceResponse[];
 }
 
+export interface ProviderStatusItem {
+  status: "available" | "not_configured" | "unknown" | "quota_exhausted" | "temporarily_unavailable";
+  observed_at?: string | null;
+}
+
+export interface ProvidersStatusResponse {
+  cloud: ProviderStatusItem;
+  local: ProviderStatusItem;
+  neural_pulse: ProviderStatusItem;
+}
+
 export interface HarvestedSourceItem {
   id: string;
   url: string;
@@ -69,9 +80,40 @@ export interface HarvestedSourceItem {
   category: string;
   report_id?: string | null;
   report_title?: string | null;
-  citation_count?: number;
+  /** COUNT(DISTINCT report_sources.report_id) for this source, scoped to visible reports. */
+  linked_report_count?: number;
+  /** Number of report-source reference rows for this URL across visible reports. */
+  occurrence_count?: number;
   verified?: boolean;
   confidence?: number;
+}
+
+export interface HarvestedSourceStats {
+  total: number;
+  academic_domain_count: number;
+  academic_domain_classification: string;
+  note: string;
+  filtered_by_category?: string | null;
+}
+
+export interface ReportListResponse {
+  items: ReportSummaryResponse[];
+  /** Total visible reports matching the current filter. */
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export interface ReportCountsResponse {
+  all: number;
+  pending: number;
+  planning: number;
+  /** researching + fact_checking + writing */
+  in_progress: number;
+  complete: number;
+  needs_review: number;
+  failed: number;
 }
 
 // --- Typed API Error ---
@@ -212,8 +254,25 @@ export const apiClient = {
     return request<ReportSummaryResponse[]>(`/api/projects/${projectId}/reports`);
   },
 
-  async getAllReports(): Promise<ReportSummaryResponse[]> {
-    return request<ReportSummaryResponse[]>("/api/reports");
+  async getAllReports(params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<ReportListResponse> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    if (params?.offset != null) qs.set("offset", String(params.offset));
+    const query = qs.toString();
+    return request<ReportListResponse>(`/api/reports${query ? `?${query}` : ""}`);
+  },
+
+  async getReportCounts(): Promise<ReportCountsResponse> {
+    return request<ReportCountsResponse>("/api/reports/counts");
+  },
+
+  async getProvidersStatus(): Promise<ProvidersStatusResponse> {
+    return request<ProvidersStatusResponse>("/api/reports/providers/status");
   },
 
   async createReport(projectId: string, data: ReportCreate): Promise<ReportCreateResponse> {
@@ -259,18 +318,20 @@ export const apiClient = {
     }
   },
 
-  async getSources(params?: { q?: string; category?: string }): Promise<HarvestedSourceItem[]> {
-    try {
-      const searchParams = new URLSearchParams();
-      if (params?.q) searchParams.set("q", params.q);
-      if (params?.category) searchParams.set("category", params.category);
-      const qs = searchParams.toString();
-      return await request<HarvestedSourceItem[]>(`/api/sources${qs ? `?${qs}` : ""}`);
-    } catch {
-      // Evidence is always API-backed. An empty library is reported honestly
-      // instead of substituting invented citations.
-      return [];
-    }
+  /** Fetch visible source list. Throws ApiError on failure — callers must handle the error state. */
+  async getSources(params?: { category?: string }): Promise<HarvestedSourceItem[]> {
+    const qs = new URLSearchParams();
+    if (params?.category && params.category !== "all") qs.set("category", params.category);
+    const query = qs.toString();
+    return request<HarvestedSourceItem[]>(`/api/sources${query ? `?${query}` : ""}`);
+  },
+
+  /** Fetch backend-authoritative source stats. Throws ApiError on failure. */
+  async getSourceStats(params?: { category?: string }): Promise<HarvestedSourceStats> {
+    const qs = new URLSearchParams();
+    if (params?.category && params.category !== "all") qs.set("category", params.category);
+    const query = qs.toString();
+    return request<HarvestedSourceStats>(`/api/sources/stats${query ? `?${query}` : ""}`);
   },
 
 };

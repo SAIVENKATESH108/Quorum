@@ -4,14 +4,18 @@ import secrets
 import psycopg2
 
 
+import os
+
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 210_000)
     return f"pbkdf2_sha256$210000${salt.hex()}${digest.hex()}"
 
-DB_URL = "postgresql://neondb_owner:npg_LZS35mcWrDBn@ep-falling-mud-b312nr2e-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+DB_URL = os.environ.get("DATABASE_URL", "")
 
 def seed():
+    if not DB_URL:
+        raise ValueError("DATABASE_URL environment variable is required to run seed script.")
     conn = psycopg2.connect(DB_URL)
     conn.autocommit = False
     cur = conn.cursor()
@@ -19,11 +23,11 @@ def seed():
     print("--- 1. Creating 3 Real Users ---")
     users = [
         {
-            "id": "9918d84c-7694-4df4-ad1b-39313d6577dc",
-            "email": "venkateshsai589@gmail.com",
-            "name": "Sai Venkatesh",
+            "id": "a1000000-0000-4000-8000-000000000001",
+            "email": os.environ.get("SEED_ADMIN_EMAIL", "admin@example.com"),
+            "name": "System Administrator",
             "role": "admin",
-            "password": "QuorumAdmin2026!"
+            "password": os.environ.get("SEED_ADMIN_PASSWORD", "AdminPassword2026!"),
         },
         {
             "id": "b1000000-0000-4000-8000-000000000002",
@@ -57,12 +61,12 @@ def seed():
     projects = [
         {
             "id": "e69e31df-0bf3-4f4b-ae22-0e9b03c38f22",
-            "user_id": "9918d84c-7694-4df4-ad1b-39313d6577dc",
+            "user_id": "a1000000-0000-4000-8000-000000000001",
             "title": "Autonomous Multi-Agent Consensus Architecture"
         },
         {
             "id": "d2000000-0000-4000-8000-000000000002",
-            "user_id": "9918d84c-7694-4df4-ad1b-39313d6577dc",
+            "user_id": "a1000000-0000-4000-8000-000000000001",
             "title": "Post-Quantum Cryptographic Migration Verification"
         },
         {

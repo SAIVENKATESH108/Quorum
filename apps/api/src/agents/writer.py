@@ -271,6 +271,8 @@ class WriterAgent(Agent):
         )
         try:
             corrected = await self.provider.complete(prompt)
+            if not isinstance(corrected, str):
+                return None
             clean = corrected.strip()
             if clean and len(clean) > 80:
                 return clean
@@ -288,6 +290,11 @@ class WriterAgent(Agent):
         verified_citations: List[str],
     ) -> Dict[str, Any]:
         """Extract structured codebase specification from LLM completion."""
+        if not isinstance(text, str):
+            logger.debug(f"[WRITER] Codebase output is not a string (type={type(text)}), using fallback.")
+            return self._grounded_codebase_synthesis_fallback(
+                query, doc_analyses, key_files, truncation_notice, verified_citations, []
+            )
         try:
             clean = text.strip()
             if clean.startswith("```json"):
@@ -457,6 +464,9 @@ class WriterAgent(Agent):
         self, text: str, query: str, research_outputs: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Extract structured report title and sections for academic research mode."""
+        if not isinstance(text, str):
+            logger.debug(f"[WRITER] Report output is not a string (type={type(text)}), using fallback.")
+            return self._grounded_synthesis_fallback(query, research_outputs)
         try:
             clean = text.strip()
             if clean.startswith("```json"):

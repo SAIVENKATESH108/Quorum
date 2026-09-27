@@ -78,7 +78,7 @@ export function LiveTelemetryConsole({
         timestamp: formatTime(120),
         level: "INFO",
         tag: "DATABASE:NEON",
-        message: "Connected to Neon PostgreSQL pooler (ep-falling-mud-b312nr2e-pooler) via pgvector.",
+        message: "Connected to Neon PostgreSQL pooler via pgvector.",
         latencyMs: 22,
       },
       {
@@ -86,10 +86,12 @@ export function LiveTelemetryConsole({
         timestamp: formatTime(280),
         level: "INFO",
         tag: "PROVIDER:CHAIN",
-        message: `Provider strategy configured: [${
+        message: `Provider mode configured: [${
           providerMode === "neural_pulse"
-            ? "Evorozen Neural Pulse (Primary) -> Gemini Pro -> Ollama Local"
-            : "Cloud Multi-Provider Chain -> Ollama"
+            ? "Evorozen Neural Pulse (Isolated Provider)"
+            : providerMode === "local"
+            ? "Ollama (Local Offline)"
+            : "Cloud Multi-Provider Chain (OpenRouter -> Gemini -> OpenAI)"
         }]. Circuit breaker active.`,
         latencyMs: 18,
       },

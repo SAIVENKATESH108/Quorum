@@ -47,6 +47,7 @@ class ReportSummaryResponse(BaseModel):
     error_message: Optional[str] = None
     source_type: Optional[str] = "query"
     source_ref: Optional[str] = None
+    is_guest_demo: bool = False
     created_at: datetime
     completed_at: Optional[datetime] = None
 

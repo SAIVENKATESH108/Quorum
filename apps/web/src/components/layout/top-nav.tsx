@@ -4,9 +4,10 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Shield } from "lucide-react";
 import { UserAvatarDropdown } from "./user-avatar-dropdown";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/components/auth-provider";
 import { cn } from "@/lib/utils";
 
 interface TopNavProps {
@@ -15,6 +16,7 @@ interface TopNavProps {
 
 export function TopNav({ onOpenMobileMenu }: TopNavProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const navLinks = [
     { href: "/projects", label: "Projects" },
@@ -89,8 +91,14 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
           })}
         </nav>
 
-        {/* Right: Theme Toggle + Tailored User Avatar Dropdown */}
+        {/* Right: Guest Badge + Theme Toggle + Tailored User Avatar Dropdown */}
         <div className="flex items-center gap-2.5">
+          {user?.role === "guest" && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-500">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Guest Judge — Read-only</span>
+            </div>
+          )}
           <ThemeToggle />
           <UserAvatarDropdown />
         </div>

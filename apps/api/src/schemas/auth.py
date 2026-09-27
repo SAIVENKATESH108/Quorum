@@ -27,3 +27,15 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     token: str
+
+
+class GuestSessionResponse(BaseModel):
+    success: bool = True
+    session_type: str = "guest"
+    role: str = "guest"
+    expires_at: str
+
+
+class LogoutResponse(BaseModel):
+    success: bool = True
+    message: str = "Logged out successfully"
