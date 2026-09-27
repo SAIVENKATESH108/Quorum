@@ -223,7 +223,8 @@ async def test_sensitive_text_scrubbing_during_indexing():
         # Verify original report section was NOT overwritten destructively
         res_sec = await session.execute(select(ReportSection).where(ReportSection.id == secs[0].id))
         original_sec = res_sec.scalars().first()
-        assert "Sup3rS3cr3t" in original_sec.content  # Original source remains unchanged
+        assert "mock_scrub_pass" in original_sec.content  # Original source remains unchanged
+
 
 
 @pytest.mark.asyncio

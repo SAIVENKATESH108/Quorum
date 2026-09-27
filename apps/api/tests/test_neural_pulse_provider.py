@@ -255,10 +255,12 @@ async def test_14_explicit_neural_pulse_never_silently_falls_back():
     # Never wrapped in ProviderFallbackChain
     assert not isinstance(provider, ProviderFallbackChain)
 
+    provider.api_key = "mock_key_secret_123"
     mock_post = AsyncMock(return_value=httpx.Response(429, json={"code": "LLM_LIMIT_EXCEEDED"}))
     with patch("httpx.AsyncClient.post", mock_post):
         with pytest.raises(NeuralPulseQuotaExceeded):
             await provider.complete("Explicit mode test")
+
 
 
 # ── Test 15: Cloud fallback chain preserves sequence without Neural Pulse ─────

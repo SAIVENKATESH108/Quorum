@@ -108,3 +108,5 @@ jobs:
           REDIS_URL: "redis://localhost:6379/0"
           OPENAI_API_KEY: "mock_test_key"
           ANTHROPIC_API_KEY: "mock_test_key"
+          NEURAL_PULSE_API_KEY: "evo_live_mock_test_key"
+
