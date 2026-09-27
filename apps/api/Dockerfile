@@ -5,10 +5,13 @@ WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml ./
 RUN uv venv /opt/venv && \
-    uv pip install --no-cache -r pyproject.toml
+    uv pip install --no-cache --python /opt/venv -r pyproject.toml
+
 
 FROM python:3.11-slim-bookworm AS runner
 
