@@ -10,47 +10,15 @@ import {
   Layers,
   Settings,
   LogOut,
-  Check,
   Cpu,
   Radio,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 
-const PRESET_ACCOUNTS = [
-  {
-    email: "venkateshsai589@gmail.com",
-    password: "QuorumAdmin2026!",
-    name: "Sai Venkatesh",
-    role: "admin",
-    roleLabel: "Administrator",
-    initials: "SV",
-    gradient: "from-indigo-600 to-purple-600",
-  },
-  {
-    email: "researcher@quorum.ai",
-    password: "Research2026!",
-    name: "Dr. Elena Vance",
-    role: "member",
-    roleLabel: "Lead Researcher",
-    initials: "EV",
-    gradient: "from-emerald-600 to-teal-600",
-  },
-  {
-    email: "analyst@quorum.ai",
-    password: "Analyst2026!",
-    name: "Marcus Chen",
-    role: "member",
-    roleLabel: "Senior Analyst",
-    initials: "MC",
-    gradient: "from-blue-600 to-cyan-600",
-  },
-];
-
 export function UserAvatarDropdown() {
   const { user, logout, refresh } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [switching, setSwitching] = useState(false);
   const [preferredModel, setPreferredModel] = useState<string>("neural_pulse");
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -125,27 +93,6 @@ export function UserAvatarDropdown() {
     : user.role === "admin"
     ? "Admin"
     : "Researcher";
-
-  const handleQuickSwitch = async (acc: (typeof PRESET_ACCOUNTS)[0]) => {
-    if (isGuest || user.email === acc.email) return;
-    setSwitching(true);
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: acc.email, password: acc.password }),
-      });
-      if (res.ok) {
-        await refresh();
-        setIsOpen(false);
-        router.refresh();
-      }
-    } catch {
-      // fallback
-    } finally {
-      setSwitching(false);
-    }
-  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -307,57 +254,6 @@ export function UserAvatarDropdown() {
                   Active (WS + Polling)
                 </span>
               </div>
-            </div>
-          </div>
-
-          <div className="my-2 border-t border-border/70" />
-
-          {/* 4. Fast Account / Persona Switcher */}
-          <div className="py-1">
-            <span className="px-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary flex items-center justify-between">
-              <span>Switch Verified Account</span>
-              {switching && (
-                <span className="text-[10px] text-accent font-normal animate-pulse">
-                  Switching...
-                </span>
-              )}
-            </span>
-            <div className="mt-1 space-y-1">
-              {PRESET_ACCOUNTS.map((acc) => {
-                const isCurrent = !isGuest && user.email === acc.email;
-                return (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    disabled={switching}
-                    onClick={() => handleQuickSwitch(acc)}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                      isCurrent
-                        ? "bg-accent/10 border border-accent/30"
-                        : "hover:bg-surface-hover border border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr ${acc.gradient} text-[10px] font-bold text-white`}
-                      >
-                        {acc.initials}
-                      </div>
-                      <div className="truncate">
-                        <p className="text-xs font-semibold text-text-primary leading-tight truncate">
-                          {acc.name}
-                        </p>
-                        <p className="text-[10px] text-text-secondary font-mono truncate">
-                          {acc.roleLabel}
-                        </p>
-                      </div>
-                    </div>
-                    {isCurrent && (
-                      <Check className="h-4 w-4 text-accent shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
             </div>
           </div>
 

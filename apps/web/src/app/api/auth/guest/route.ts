@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const getBackendUrl = () =>
-  process.env.API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { backendApiUrl } from "@/lib/backend-proxy";
 
 export async function POST(request: NextRequest) {
   return handleGuestSession(request);
@@ -14,7 +10,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function handleGuestSession(request: NextRequest) {
-  const backendUrl = getBackendUrl().replace(/\/$/, "");
+  const backendUrl = backendApiUrl();
 
   const forwardHeaders: Record<string, string> = {
     "Content-Type": "application/json",

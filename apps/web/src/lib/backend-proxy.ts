@@ -18,19 +18,21 @@ export function isDevelopmentFixtureAllowed(): boolean {
  * In production / Vercel cloud runtime, localhost is unreachable.
  * Returns null if the URL is missing or cannot be reached.
  */
-export function backendApiUrl(): string | null {
+export function backendApiUrl(): string {
   const apiUrl = (
-    process.env.FASTAPI_URL ||
     process.env.API_URL ||
+    process.env.FASTAPI_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:8000"
+    (process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === "production"
+      ? "https://quorum-ai-research-studio.up.railway.app"
+      : "http://127.0.0.1:8000")
   ).replace(/\/$/, "");
 
-  // When deployed to Vercel/cloud, an unconfigured localhost URL cannot be contacted.
+  // When deployed to Vercel/cloud, fallback to live Railway production backend if localhost is given
   const isLocal = apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1");
-  const isCloud = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
+  const isCloud = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === "production");
   if (isCloud && isLocal) {
-    return null;
+    return "https://quorum-ai-research-studio.up.railway.app";
   }
 
   return apiUrl;
