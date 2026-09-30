@@ -19,7 +19,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://quorum-research.vercel.app"
+    process.env.NEXT_PUBLIC_APP_URL || "https://quorumai-researchstudio.vercel.app"
   ),
   title: {
     default: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     "ReportLab PDF compilation",
     "academic intelligence",
   ],
-  authors: [{ name: "V.A. Sai Venkatesh", url: "https://quorum-research.vercel.app" }],
+  authors: [{ name: "V.A. Sai Venkatesh", url: "https://quorumai-researchstudio.vercel.app" }],
   creator: "V.A. Sai Venkatesh",
   publisher: "Quorum Autonomous Systems",
   robots: {
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     title: "Quorum — Autonomous Multi-Agent AI Research & Verification Platform",
     description:
       "Transform complex research queries into rigorously cited, fact-checked intelligence reports in minutes using parallel agent swarms.",
-    url: "https://quorum-research.vercel.app",
+    url: "https://quorumai-researchstudio.vercel.app",
     siteName: "Quorum",
     images: [
       {
