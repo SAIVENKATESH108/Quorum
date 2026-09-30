@@ -26,12 +26,12 @@ export const metadata: Metadata = {
     template: "%s | Quorum Research",
   },
   description:
-    "Collaborative multi-agent intelligence platform that decomposes research queries into dependency-governed DAGs, validates claims against peer-reviewed DOIs, and synthesizes publication-grade research papers.",
+    "Collaborative multi-agent intelligence platform that decomposes research queries into dependency-governed DAGs, validates claims against academic DOIs and harvested sources, and synthesizes structured research reports.",
   keywords: [
     "multi-agent AI",
     "autonomous research swarm",
     "scientific evidence synthesis",
-    "peer-reviewed DOI verification",
+    "academic DOI validation",
     "Byzantine fault tolerance",
     "DAG consensus",
     "ReportLab PDF compilation",

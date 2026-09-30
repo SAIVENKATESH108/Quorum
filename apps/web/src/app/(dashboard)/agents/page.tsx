@@ -86,11 +86,11 @@ export default function AgentsMeshPage() {
       name: "Fact-Checking & Verification Agent",
       role: "Adversarial Auditor",
       description:
-        "Performs adversarial verification on synthesized claims. Cross-references statements against cited sources to eliminate hallucinations and assign verification badges.",
+        "Performs adversarial verification on synthesized claims. Cross-references statements against cited sources to validate claims and assign verification badges.",
       model: "gemini-1.5-pro",
       fallbackModel: "claude-3-5-sonnet",
       status: "healthy",
-      successRate: "99.1%",
+      successRate: "98.9%",
       avgLatency: "640ms",
       tasksCompleted: 429,
       circuitBreaker: "closed",
@@ -98,7 +98,7 @@ export default function AgentsMeshPage() {
         "Semantic Entailment Verification",
         "Vector Cosine Similarity Check",
         "Citation Anchor Validation",
-        "Adversarial Hallucination Pruning",
+        "Adversarial Claim Validation",
       ],
     },
     {

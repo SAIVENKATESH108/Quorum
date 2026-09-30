@@ -66,7 +66,7 @@ const STAGES: StageDefinition[] = [
     id: "complete",
     title: "Complete",
     role: "Verified Synthesis",
-    description: "Peer-reviewed final report ready",
+    description: "Synthesized report ready for human review",
     icon: CheckCircle2,
   },
 ];
@@ -148,7 +148,7 @@ function getPhaseLabel(status: ReportStatus): string {
     case "writing":
       return "Phase 4 / 5: Section Synthesis & Citation Assembly";
     case "needs_review":
-      return "Phase 5 / 5: Peer-Reviewed Synthesis Sealed — Ready for Review & Approval";
+      return "Phase 5 / 5: Synthesis Sealed — Ready for Human Review & Approval";
     case "complete":
       return "Phase 5 / 5: Verified Synthesis Publication Complete";
     case "failed":

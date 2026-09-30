@@ -97,9 +97,9 @@ export default function PublicLandingPage() {
 
             {/* Subtitle */}
             <p className="max-w-3xl mx-auto text-base sm:text-lg lg:text-xl text-text-secondary leading-relaxed font-normal">
-              Move beyond single-turn hallucinations. Quorum orchestrates parallel researcher
-              agents into a topological Directed Acyclic Graph (DAG) — cross-examining primary
-              literature, verifying academic DOIs, and compiling institutional-grade intelligence reports.
+              Evidence-grounded research workflow. Quorum orchestrates parallel researcher
+              agents into a topological Directed Acyclic Graph (DAG) — retrieving academic
+              literature, performing claim and citation validation checks, and compiling structured intelligence reports.
             </p>
 
             {/* Action CTAs */}
@@ -136,27 +136,27 @@ export default function PublicLandingPage() {
             {/* Key Metrics Strip */}
             <div className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
               <div className="p-4 rounded-xl border border-border/80 bg-surface shadow-xs">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-accent">99.1%</div>
-                <div className="text-xs font-medium text-text-primary mt-1">Fact-Check Accuracy</div>
-                <p className="text-[11px] text-text-secondary mt-0.5">Cross-verified claims vs primary DOIs</p>
+                <div className="text-sm sm:text-base font-bold text-accent">Evidence-Grounded</div>
+                <div className="text-xs font-medium text-text-primary mt-1">Research Workflow</div>
+                <p className="text-[11px] text-text-secondary mt-0.5">Claim and citation validation checks</p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/80 bg-surface shadow-xs">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-text-primary">3–6x</div>
-                <div className="text-xs font-medium text-text-primary mt-1">Parallel Swarm Agents</div>
-                <p className="text-[11px] text-text-secondary mt-0.5">Concurrent literature retrieval</p>
+                <div className="text-sm sm:text-base font-bold text-text-primary">Parallel Swarm</div>
+                <div className="text-xs font-medium text-text-primary mt-1">Agent Orchestration</div>
+                <p className="text-[11px] text-text-secondary mt-0.5">Parallel research-agent orchestration</p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/80 bg-surface shadow-xs">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-emerald-500">&lt; 45s</div>
-                <div className="text-xs font-medium text-text-primary mt-1">Convergence Time</div>
-                <p className="text-[11px] text-text-secondary mt-0.5">From prompt to structured report</p>
+                <div className="text-sm sm:text-base font-bold text-emerald-500">Cited Reports</div>
+                <div className="text-xs font-medium text-text-primary mt-1">Report Generation</div>
+                <p className="text-[11px] text-text-secondary mt-0.5">Structured synthesis with source references</p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/80 bg-surface shadow-xs">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-text-primary">0</div>
-                <div className="text-xs font-medium text-text-primary mt-1">Fabricated Citations</div>
-                <p className="text-[11px] text-text-secondary mt-0.5">Strict empirical URL grounding</p>
+                <div className="text-sm sm:text-base font-bold text-amber-500">Human Review</div>
+                <div className="text-xs font-medium text-text-primary mt-1">Required Step</div>
+                <p className="text-[11px] text-text-secondary mt-0.5">Human review required before publication or reliance</p>
               </div>
             </div>
           </div>
@@ -219,7 +219,7 @@ export default function PublicLandingPage() {
                 empirical data against fetched URLs, discards contradictions, and scores confidence.
               </p>
               <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-text-secondary">
-                <span className="text-emerald-500 font-medium">Confidence:</span> &ge; 85% Threshold
+                <span className="text-emerald-500 font-medium">Validation:</span> Claim &amp; citation cross-check
               </div>
             </div>
 
